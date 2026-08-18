@@ -1,0 +1,232 @@
+/* Returns Interface - Full Chunk Display Styles */
+/* Pages displayed as formatted text blocks without word-level DOM elements */
+
+/* FullChunk page-container resting opacity. Own token (not the active-word
+   --base-text-opacity) because the desktop value differs: 0.5 here vs 0.3 there.
+   Boosted on touch devices for legibility, matching the highlighting token. */
+:root {
+    --fullchunk-base-opacity: 0.5;
+}
+
+@media (pointer: coarse) and (hover: none) {
+    :root {
+        --fullchunk-base-opacity: 0.58;
+    }
+}
+
+#fullChunkView {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#fullChunkDisplay {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 20vh;
+    padding: var(--fullchunk-text-viewport-top-gap) var(--reader-text-viewport-side-gap) var(--fullchunk-text-viewport-bottom-gap);
+    background: none;
+    border: none;
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: #e5e7eb;
+    font-family: inherit;
+    font-size: var(--fullchunkdisplay-font-size);
+    overflow: hidden;
+    cursor: default;
+    transition: opacity 0.15s ease;
+}
+
+#fullChunkDisplay .text-flex {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* FullChunk mode single scroll owner */
+#fullChunkDisplay .text-content {
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    max-width: 100%;
+    overflow-y: hidden;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    box-sizing: border-box;
+    padding-right: var(--reader-text-viewport-side-gap);
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(251, 191, 36, 0.25) transparent;
+}
+
+#fullChunkDisplay .text-content.is-scrollable {
+    overflow-y: scroll;
+}
+
+#fullChunkDisplay .text-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+#fullChunkDisplay .text-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#fullChunkDisplay .text-content::-webkit-scrollbar-thumb {
+    background: rgba(251, 191, 36, 0.25);
+    border-radius: 999px;
+}
+
+@media (pointer: fine) and (min-width: 769px) {
+    #fullChunkView {
+        height: 100%;
+        max-height: 100%;
+        flex: 1 1 auto;
+    }
+
+    #fullChunkDisplay {
+        height: 100%;
+        max-height: 100%;
+    }
+
+    #fullChunkDisplay .text-flex {
+        height: 100%;
+        max-height: 100%;
+    }
+
+    #fullChunkDisplay .text-content {
+        max-height: min(100%, calc(100vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)) - 190px));
+    }
+}
+
+#fullChunkDisplay .text-line {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1.4;
+}
+
+#fullChunkDisplay .text-line:last-child {
+    margin-bottom: 0;
+}
+
+.paragraph-break {
+    line-height: 0.0;
+    font-size: calc(var(--fullchunkdisplay-font-size, 30px) / 2);
+    height: calc(var(--fullchunkdisplay-font-size, 30px) / 2);
+}
+
+#fullChunkDisplay br {
+    display: block;
+    margin: 0;
+    padding: 0;
+}
+
+#fullChunkDisplay br.line-break {
+    line-height: 0;
+    height: 0;
+}
+
+/* List item spacing control - adjustable via CSS variable */
+:root {
+    --list-item-spacing: 0.1em;
+}
+
+/* Custom list items with pseudo-bullets - no browser defaults */
+.list-item {
+    display: block;
+    margin-left: 1.5em;
+    margin-bottom: var(--list-item-spacing);
+    line-height: 1.3;
+    color: #e5e7eb;
+    font-family: inherit;
+    font-size: inherit;
+    position: relative;
+}
+
+.list-item.indent-0 {
+    margin-left: 1.5em;
+    font-size: 1em;
+    opacity: 1;
+}
+
+.list-item.indent-1 {
+    margin-left: 3em;
+    font-size: 0.95em;
+    opacity: 0.9;
+}
+
+.list-item.indent-2 {
+    margin-left: 4.5em;
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+.list-item.indent-3 {
+    margin-left: 6em;
+    font-size: 0.85em;
+    opacity: 0.7;
+}
+
+.list-item.bullet-item::before {
+    content: attr(data-bullet);
+    position: absolute;
+    left: -1.2em;
+    width: 1em;
+    text-align: center;
+}
+
+.list-item.numbered-item::before {
+    content: attr(data-number);
+    position: absolute;
+    left: -1.5em;
+    width: 1.2em;
+    text-align: right;
+}
+
+/* FullChunk page containers */
+#fullChunkDisplay .page-container {
+    counter-reset: item-counter;
+    display: inline;
+    cursor: pointer;
+    transition: background 0.1s ease, opacity 0.1s ease;
+    background: transparent;
+    border-radius: 4px;
+    opacity: var(--fullchunk-base-opacity, 0.5);
+    transform-origin: center bottom;
+}
+
+#fullChunkDisplay .page-container:hover {
+    background: rgba(64, 64, 64, 0.15);
+}
+
+#fullChunkDisplay .page-container.selected {
+    background: var(--reader-selection-background, rgba(251, 191, 36, 0.05));
+    color: var(--reader-selection-text-color, var(--brand-gold, #FBBF24));
+    opacity: 1.0;
+    border-radius: 8px;
+    /* Balanced vertical padding so the highlight isn't tight on the glyphs.
+       .page-container is display:inline, so box-decoration-break:clone keeps the
+       padding even across wrapped lines. Tune the 0.12em if bands overlap. */
+    padding: 0.12em 0.1em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
+#fullChunkDisplay .page-container.selected .list-item {
+    color: inherit;
+}
+
+#fullChunkDisplay .page-container br {
+    background: none !important;
+}

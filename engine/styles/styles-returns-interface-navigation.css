@@ -1,0 +1,101 @@
+/* Returns Interface - Navigation & Controls Styles */
+
+/* Dimming for UI elements during playback */
+.playback-dim {
+    opacity: 0.1;
+    transition: opacity 0.5s ease;
+}
+
+/* Speed display in right column: 10% by default during playback */
+.header-right .speed-display {
+    opacity: 0.1;
+}
+
+/* Speed display highlighting when actively being used - brightens to 80% */
+.speed-display.highlighted {
+    opacity: 0.8 !important;
+    transition: opacity 0.3s ease;
+}
+
+/* Progress Section */
+.progress-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+    align-self: flex-start;
+}
+
+.progress-container {
+    --progress-segment-stroke-rgb: 107, 114, 128;
+    --progress-segment-stroke-width: 1px;
+    --progress-segment-stroke-opacity-unavailable: 0.08;
+    --progress-segment-stroke-opacity-available: 0.3;
+    --progress-segment-stroke-opacity-active: 1;
+    --progress-segment-active-ring-opacity: 0.2;
+    --progress-visual-height: 18px;
+    --progress-hitbox-height: 28px;
+    width: 100%;
+    min-height: var(--progress-hitbox-height);
+    background: transparent;
+    border-radius: 8px;
+    overflow: visible;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.progress-segment {
+    flex: 1;
+    height: var(--progress-visual-height);
+    background: rgba(64, 64, 64, 0.3);
+    border-radius: 6px;
+    margin: 0 2px;
+    position: relative;
+    overflow: hidden;
+    align-self: center;
+    border: var(--progress-segment-stroke-width) solid rgba(
+    var(--progress-segment-stroke-rgb),
+    var(--progress-segment-stroke-opacity-unavailable)
+    );
+    transition: all 0.3s ease;
+}
+
+.progress-segment.is-available {
+    border-color: rgba(
+        var(--progress-segment-stroke-rgb),
+        var(--progress-segment-stroke-opacity-available)
+    );
+}
+
+.progress-segment.is-disabled {
+    border-color: rgba(
+        var(--progress-segment-stroke-rgb),
+        var(--progress-segment-stroke-opacity-unavailable)
+    );
+}
+
+.progress-segment.active {
+    border-color: rgba(
+        var(--progress-segment-stroke-rgb),
+        var(--progress-segment-stroke-opacity-active)
+    );
+    box-shadow: 0 0 0 2px rgba(
+        var(--progress-segment-stroke-rgb),
+        var(--progress-segment-active-ring-opacity)
+    );
+    background: rgba(107, 114, 128, 0.1);
+}
+
+.progress-segment-fill {
+    height: 100%;
+    background: #6b7280;
+    width: 0%;
+    transition: width 0.1s ease;
+    border-radius: 6px;
+}

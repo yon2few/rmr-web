@@ -1,0 +1,689 @@
+/* Built-in Overlay System Styles */
+
+/* Main Overlay Container */
+.builtin-overlay {
+    position: absolute;
+    top: var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh));
+    left: 50%; /* Center horizontally */
+    width: var(--overlay-width, 70%);
+    max-width: var(--overlay-max-width, 1800px);
+    height: var(--overlay-shell-height-effective, var(--overlay-shell-height, 50vh));
+    transform: translateX(-50%); /* Center horizontally only - top anchored */
+    padding: var(--overlay-shell-padding-top, max(0px, calc(var(--overlay-spacing, 16px) - 5px)))
+        var(--overlay-shell-padding-inline, var(--overlay-spacing, 16px))
+        var(--overlay-shell-padding-bottom, var(--overlay-spacing, 16px));
+    color: #e5e7eb;
+    font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    gap: var(--overlay-spacing);
+    box-sizing: border-box;
+    z-index: 2147483000;
+    isolation: isolate;
+}
+
+.builtin-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(26, 26, 26, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(107, 114, 128, 0.3);
+    border-radius: var(--overlay-border-radius, 12px);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.builtin-overlay > * {
+    position: relative;
+    z-index: 1;
+}
+
+.builtin-overlay[data-active-view="fullchunk"],
+.builtin-overlay[data-active-view="pageview"] {
+    height: calc(98vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)));
+    min-height: calc(98vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)));
+    max-height: calc(98vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)));
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="input"] {
+    height: auto;
+    max-height: calc(100vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)) - 24px);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="loading"] {
+    height: max(var(--input-overlay-height, 0px), var(--overlay-shell-height-effective, var(--overlay-shell-height, 72vh)));
+    max-height: calc(100vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)) - 24px);
+    grid-template-rows: auto auto auto 1fr;
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="loading"] .overlay-actions {
+    display: none;
+}
+
+.builtin-overlay[data-active-view="loading"] .overlay-content {
+    grid-row: 2;
+}
+
+.builtin-overlay[data-active-view="loading"] .overlay-progress-row {
+    grid-row: 3;
+    padding-top: 40px;
+}
+
+.overlay-progress-row {
+    display: none;
+    width: 100%;
+}
+
+.builtin-overlay[data-active-view="loading"] .overlay-progress-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.builtin-overlay[data-active-view="fullchunk"] .overlay-progress-row,
+.builtin-overlay[data-active-view="pageview"] .overlay-progress-row {
+    display: flex;
+}
+
+/* During loading: hide the chunk progress bar */
+.builtin-overlay[data-active-view="loading"] #progressBar {
+    display: none;
+}
+
+#loadingTitleRow,
+#titleRowHint {
+    display: none;
+}
+
+.builtin-overlay[data-active-view="loading"] #loadingTitleRow {
+    display: flex;
+    max-width: 70%;
+    margin: 0 auto;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="loading"] #loadingTitleRow {
+    max-width: 90%;
+}
+
+.builtin-overlay[data-active-view="loading"] #titleRowHint {
+    display: block;
+    margin-top: 12px;
+    text-align: center;
+}
+
+.builtin-overlay[data-active-view="loading"] .overlay-header.title-committed ~ .overlay-progress-row #loadingTitleRow,
+.builtin-overlay[data-active-view="loading"] .overlay-header.title-committed ~ .overlay-progress-row #titleRowHint {
+    display: none;
+}
+
+.header-title-readout {
+    display: none;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--brand-gold);
+    font-size: var(--overlay-title-font-size, 20px);
+    font-weight: 400;
+    line-height: 1.2;
+    text-align: center;
+    font-family: inherit;
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    -webkit-user-select: text;
+    user-select: text;
+    touch-action: auto;
+    cursor: text;
+    outline: none;
+}
+
+.header-title-readout:focus {
+    color: var(--brand-gold);
+    text-decoration: underline;
+    text-decoration-color: var(--brand-gold);
+    text-underline-offset: 3px;
+}
+
+.builtin-overlay[data-active-view="loading"] .overlay-header.title-committed .header-title-readout,
+.builtin-overlay[data-active-view="fullchunk"] .header-title-readout,
+.builtin-overlay[data-active-view="pageview"] .header-title-readout {
+    display: block;
+}
+
+/* Overlay Header */
+.overlay-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    cursor: default;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+    flex-shrink: 0;
+    margin-bottom: 0;
+    padding: 0;
+    position: relative;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 0;
+    gap: var(--overlay-title-item-gap, 12px);
+}
+
+.builtin-overlay[data-active-view="input"] .header-left {
+    margin-left: var(--input-title-left-offset);
+}
+
+.header-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.builtin-overlay[data-active-view="fullchunk"] .header-center,
+.builtin-overlay[data-active-view="pageview"] .header-center {
+    overflow: hidden;
+    justify-self: center;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
+    gap: 8px;
+}
+
+.header-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: #e5e7eb;
+    font-size: 18px;
+    cursor: pointer;
+    opacity: 1;
+    transition: opacity 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.header-action-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.3);
+    opacity: 1;
+}
+
+/* disabled state handled globally in styles-core.css */
+
+.header-action-btn[hidden] {
+    display: none !important;
+}
+
+.overlay-title-static {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--overlay-title-font-size, 20px);
+    line-height: 1.2;
+    color: #e5e7eb;
+    font-weight: 400;
+    white-space: nowrap;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.overlay-title-field {
+    display: flex;
+    align-items: center;
+    width: auto;
+    min-width: var(--overlay-title-field-min-width, 200px);
+    max-width: 100%;
+    position: relative;
+    -webkit-user-select: text;
+    user-select: text;
+    touch-action: auto;
+    padding: 4px 12px;
+    border-radius: 8px;
+    background: var(--overlay-title-background-color, var(--overlay-title-inactive-background, rgba(251, 191, 36, 0.05)));
+    border: 1px dashed rgba(251, 191, 36, 0.45);
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, padding 0.2s ease;
+}
+
+.overlay-title-field:focus-within,
+.overlay-header.is-editing-title .overlay-title-field {
+    outline: none !important;
+    box-shadow: none !important;
+    background: var(--overlay-title-active-background-color, var(--overlay-title-active-background, rgba(251, 191, 36, 0.62)));
+}
+
+.overlay-title-field:not(:focus-within) {
+    background: var(--overlay-title-background-color, var(--overlay-title-inactive-background, rgba(251, 191, 36, 0.05)));
+}
+
+.overlay-header.has-filled-title .overlay-title-field:not(:focus-within) {
+    border: none;
+    background: var(--overlay-title-filled-inactive-background, rgba(251, 191, 36, 0.05));
+}
+
+.overlay-header.has-filled-title .overlay-title-field:not(:focus-within) .overlay-title-input {
+    font-size: calc(var(--overlay-title-fit-font-size, var(--overlay-title-font-size, 20px)) + 2pt);
+    font-style: normal;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+    letter-spacing: calc(var(--overlay-title-letter-spacing, 0.04em) * 1.15);
+}
+
+.overlay-header:not(.has-filled-title) .overlay-title-field:focus-within,
+.overlay-header:not(.has-filled-title).is-editing-title .overlay-title-field {
+    border-style: dashed;
+    border-color: var(--overlay-title-active-text-color, rgba(26, 26, 26, 0.55));
+}
+
+.overlay-header.has-filled-title .overlay-title-field:focus-within,
+.overlay-header.has-filled-title.is-editing-title .overlay-title-field {
+    border: none;
+    background: var(--overlay-title-active-background-color, var(--overlay-title-active-background, rgba(251, 191, 36, 0.62)));
+}
+
+.overlay-title-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 100%;
+    color: var(--overlay-title-text-color, rgba(251, 191, 36, 0.62));
+    font-size: var(--overlay-title-fit-font-size, var(--overlay-title-font-size, 20px));
+    line-height: 1.2;
+    font-weight: 400;
+    font-style: italic;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.overlay-title-input {
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+    font-size: var(--overlay-title-fit-font-size, var(--overlay-title-font-size, 20px));
+    line-height: 1.2;
+    color: var(--overlay-title-text-color, rgba(251, 191, 36, 0.62));
+    opacity: 1;
+    font-weight: 400;
+    font-style: italic;
+    font-family: inherit;
+    outline: none !important;
+    box-shadow: none !important;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.2s ease;
+    caret-color: var(--overlay-title-text-color, rgba(251, 191, 36, 0.62));
+}
+
+.overlay-title-field:focus-within .overlay-title-input,
+.overlay-header.is-editing-title .overlay-title-input {
+    color: var(--overlay-title-active-text-color, rgba(26, 26, 26, 0.95));
+    caret-color: var(--overlay-title-active-text-color, rgba(26, 26, 26, 0.95));
+}
+
+.overlay-title-input:focus,
+.overlay-title-input:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.speed-display {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(213, 154, 18, 0.35);
+    background: rgba(213, 154, 18, 0.1);
+    color: var(--brand-gold);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: default;
+    flex-shrink: 0;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+#builtin-overlay[data-active-view="pageview"] .speed-display {
+    display: inline-flex;
+}
+
+#builtin-overlay[data-active-view="pageview"] #loadBtn {
+    display: none;
+}
+
+#builtin-overlay[data-active-view="loading"] #loadBtn {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Overlay Content */
+.overlay-content {
+    min-height: 0;
+    padding: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="fullchunk"] .overlay-content,
+.builtin-overlay[data-active-view="pageview"] .overlay-content {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="input"] .overlay-content {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="loading"] .overlay-content,
+.builtin-overlay[data-active-view="loading"] .overlay-body,
+.builtin-overlay[data-active-view="loading"] .overlay-main,
+.builtin-overlay[data-active-view="loading"] .view-panel {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="loading"] .overlay-body,
+.builtin-overlay[data-active-view="loading"] .overlay-main,
+.builtin-overlay[data-active-view="loading"] .view-panel {
+    width: 100%;
+}
+
+.overlay-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+        "main"
+        "actions";
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: var(--overlay-spacing);
+    min-height: 0;
+    overflow: hidden;
+    line-height: 1.6;
+    font-size: 18px;
+    padding: 0;
+}
+
+.builtin-overlay[data-active-view="fullchunk"] .overlay-body,
+.builtin-overlay[data-active-view="pageview"] .overlay-body {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+}
+
+.builtin-overlay[data-active-view="input"] .overlay-body {
+    grid-template-rows: minmax(0, 1fr) auto;
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="loading"] .overlay-body {
+    grid-template-rows: auto;
+    overflow: hidden;
+}
+
+.overlay-actions {
+    grid-area: actions;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: var(--overlay-spacing);
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+}
+
+.overlay-actions > #generateBtn {
+    order: 20;
+    margin-top: 0;
+}
+
+.overlay-actions > .overlay-actions-row {
+    order: 0;
+}
+
+.overlay-actions > #pageNavDots {
+    order: 30;
+}
+
+/* Desktop keeps arrow buttons; page dots are mobile/touch-only. */
+.page-nav-dots {
+    display: none;
+}
+
+.builtin-overlay[data-active-view="fullchunk"] .overlay-actions,
+.builtin-overlay[data-active-view="pageview"] .overlay-actions {
+    overflow: hidden;
+}
+
+#builtin-overlay[data-active-view="pageview"][data-pageview-playing="true"] #overlayActionsSecondaryRow {
+    display: none;
+}
+
+#builtin-overlay[data-active-view="pageview"][data-pageview-playing="true"] .overlay-actions {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: visible;
+}
+
+#pageviewPlayHitbox {
+    display: none;
+    order: 10;
+}
+
+#builtin-overlay[data-active-view="pageview"][data-pageview-playing="true"] #pageviewPlayHitbox {
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#builtin-overlay[data-active-view="pageview"][data-pageview-playing="true"] #generateBtn {
+    position: relative;
+    overflow: visible;
+}
+
+#builtin-overlay[data-active-view="pageview"][data-pageview-playing="true"] #generateBtn::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    height: 200px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.overlay-actions .overlay-primary-action,
+.overlay-actions .title-action-btn {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: 100%;
+}
+
+.builtin-overlay[data-active-view="input"] .overlay-actions .overlay-primary-action,
+.builtin-overlay[data-active-view="input"] .overlay-actions .title-action-btn {
+    justify-content: center;
+    text-align: center;
+}
+
+.builtin-overlay[data-active-view="input"] .overlay-actions .overlay-primary-action .btn-label,
+.builtin-overlay[data-active-view="input"] .overlay-actions .title-action-btn .btn-label {
+    text-align: center;
+}
+
+.builtin-overlay[data-active-view="fullchunk"] .overlay-actions .overlay-primary-action,
+.builtin-overlay[data-active-view="fullchunk"] .overlay-actions .title-action-btn,
+.builtin-overlay[data-active-view="pageview"] .overlay-actions .overlay-primary-action,
+.builtin-overlay[data-active-view="pageview"] .overlay-actions .title-action-btn {
+    justify-content: center;
+    text-align: center;
+}
+
+.builtin-overlay[data-active-view="fullchunk"] .overlay-actions .overlay-primary-action .btn-label,
+.builtin-overlay[data-active-view="fullchunk"] .overlay-actions .title-action-btn .btn-label,
+.builtin-overlay[data-active-view="pageview"] .overlay-actions .overlay-primary-action .btn-label,
+.builtin-overlay[data-active-view="pageview"] .overlay-actions .title-action-btn .btn-label {
+    text-align: center;
+}
+
+.overlay-main {
+    grid-area: main;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.pageview-gesture-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    touch-action: none;
+    background: transparent;
+}
+
+@media (pointer: coarse) and (hover: none) {
+    .builtin-overlay[data-active-view="pageview"] .pageview-gesture-layer {
+        pointer-events: auto;
+    }
+}
+
+.builtin-overlay[data-active-view="fullchunk"] .overlay-main,
+.builtin-overlay[data-active-view="pageview"] .overlay-main {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+@media (pointer: fine) and (min-width: 769px) {
+    .builtin-overlay[data-active-view="fullchunk"] {
+        grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    .builtin-overlay[data-active-view="fullchunk"] .overlay-body {
+        grid-template-rows: minmax(0, 1fr) auto;
+        align-content: stretch;
+    }
+
+    .builtin-overlay[data-active-view="fullchunk"] .overlay-main,
+    .builtin-overlay[data-active-view="fullchunk"] .view-panel {
+        flex: 1 1 auto;
+        height: 100%;
+    }
+}
+
+.builtin-overlay[data-active-view="input"] .overlay-main {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="loading"] .overlay-main {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="input"] .view-panel {
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="loading"] .view-panel {
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.view-panel {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.builtin-overlay[data-active-view="fullchunk"] .view-panel,
+.builtin-overlay[data-active-view="pageview"] .view-panel {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.view-panel[hidden] {
+    display: none !important;
+}
+
+/* Watermark */
+.watermark {
+    position: fixed;
+    top: 60%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    font-size: clamp(1.5rem, 3.5vw, 2rem);
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    z-index: 1;
+    pointer-events: none;
+    backdrop-filter: blur(2px);
+    text-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+    opacity: 1.0;
+    transition: opacity 0.5s ease;
+}

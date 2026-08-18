@@ -1,0 +1,95 @@
+/* Word Highlighting System */
+/* Used only in Page View Display during active playback */
+
+:root {
+    --base-text-opacity: 0.3;
+    --lookahead-offset: 0.15;
+}
+
+@media (pointer: coarse) and (hover: none) {
+    :root {
+        --base-text-opacity: 0.58;
+        --lookahead-offset: 0.22;
+    }
+}
+
+/* Base words stay inline text so the line never reflows as neighbors change
+   weight; only the active word becomes an inline-block box to carry the scale
+   transform. Hoisting inline-block onto every word makes each a reflowing box
+   and causes the line to jitter as the highlight sweeps through. */
+#pageViewDisplay .word,
+#pageViewDisplay .word-lite {
+    display: inline;
+    vertical-align: baseline;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    white-space: normal;
+    word-wrap: break-word;
+    min-width: 0;
+    box-sizing: border-box;
+    font-weight: 400;
+    opacity: 0.2;
+}
+
+#pageViewDisplay .word.active,
+#pageViewDisplay .word-lite.active {
+    background: #000000;
+    color: var(--active-word-color);
+    font-weight: 700;
+    transform: scale(var(--active-word-scale, 1.13));
+    transform-origin: bottom;
+    opacity: 1;
+    position: relative;
+    z-index: 10;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+#pageViewDisplay .word.active.paused,
+#pageViewDisplay .word-lite.active.paused {
+    transform: scale(1);
+}
+
+#pageViewDisplay .word.lookahead,
+#pageViewDisplay .word-lite.lookahead {
+    opacity: calc(var(--base-text-opacity) + var(--lookahead-offset));
+    font-weight: 500;
+}
+
+#pageViewDisplay .word.lookback,
+#pageViewDisplay .word-lite.lookback {
+    opacity: calc(var(--base-text-opacity) + var(--lookahead-offset));
+    font-weight: 500;
+}
+
+#pageViewDisplay .word.inactive-read,
+#pageViewDisplay .word-lite.inactive-read {
+    opacity: var(--base-text-opacity);
+    font-weight: 400;
+}
+
+#pageViewDisplay .word.inactive-future,
+#pageViewDisplay .word-lite.inactive-future {
+    opacity: var(--base-text-opacity);
+    font-weight: 400;
+}
+
+#pageViewDisplay .word.paused-word,
+#pageViewDisplay .word-lite.paused-word {
+    color: #ffffff !important;
+    font-weight: bold !important;
+    opacity: 1.0 !important;
+    background: rgba(107, 114, 128, 0.3);
+}
+
+#pageViewDisplay .word.selected,
+#pageViewDisplay .word-lite.selected {
+    font-weight: 700;
+    color: var(--reader-selection-text-color, var(--brand-gold, #FBBF24));
+    opacity: 1.0;
+    background: var(--reader-selection-background, rgba(251, 191, 36, 0.05));
+    padding: 4px 8px;
+    border-radius: 8px;
+}

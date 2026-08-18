@@ -1,0 +1,184 @@
+#!/usr/bin/env python3
+"""Local static + /api/thread proxy. Production uses the Netlify function."""
+
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse, urlencode
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+import json
+import sys
+
+ROOT = Path(__file__).resolve().parent
+UA = "ArTReader-RMR/1.0 (https://artreader.art/rmr)"
+PORT = 8777
+
+
+def is_thread(url: str) -> bool:
+    try:
+        u = urlparse(url)
+    except ValueError:
+        return False
+    host = (u.hostname or "").lower()
+    if not (host == "reddit.com" or host.endswith(".reddit.com")):
+        return False
+    return "/comments/" in (u.path or "")
+
+
+def normalize(url: str) -> str:
+    u = urlparse(url)
+    host = (u.hostname or "").lower()
+    if host in ("old.reddit.com", "sh.reddit.com", "new.reddit.com", "reddit.com"):
+        host = "www.reddit.com"
+    path = (u.path or "").rstrip("/")
+    return f"https://{host}{path}"
+
+
+def thread_id(url: str) -> str:
+    parts = (urlparse(url).path or "").split("/")
+    if "comments" in parts:
+        i = parts.index("comments")
+        if i + 1 < len(parts):
+            return parts[i + 1]
+    return ""
+
+
+def to_json_url(thread_url: str, sort: str, host: str) -> str:
+    u = urlparse(thread_url)
+    path = (u.path or "").rstrip("/")
+    if not path.endswith(".json"):
+        path = f"{path}.json"
+    reddit_sort = "confidence" if sort == "best" else sort
+    return f"https://{host}{path}?sort={reddit_sort}&raw_json=1"
+
+
+def fetch_json(url: str):
+    req = Request(url, headers={"Accept": "application/json", "User-Agent": UA})
+    try:
+        with urlopen(req, timeout=20) as res:
+            return res.status, json.loads(res.read().decode("utf-8"))
+    except HTTPError as err:
+        return err.code, None
+    except (URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError):
+        return 502, None
+
+
+def has_post(payload) -> bool:
+    try:
+        return bool(payload[0]["data"]["children"][0]["data"]["id"])
+    except (TypeError, KeyError, IndexError):
+        return False
+
+
+def rebuild_listing(post, comments):
+    by_name = {}
+    roots = []
+    for comment in comments:
+        cid = comment.get("id")
+        if not cid:
+            continue
+        by_name[f"t1_{cid}"] = {
+            "kind": "t1",
+            "data": {
+                "author": comment.get("author"),
+                "body": comment.get("body"),
+                "id": cid,
+                "parent_id": comment.get("parent_id"),
+                "score": comment.get("score"),
+                "replies": {"kind": "Listing", "data": {"children": []}},
+            },
+        }
+    for comment in comments:
+        cid = comment.get("id")
+        node = by_name.get(f"t1_{cid}")
+        if not node:
+            continue
+        parent = comment.get("parent_id") or ""
+        if parent.startswith("t3_"):
+            roots.append(node)
+        elif parent in by_name:
+            by_name[parent]["data"]["replies"]["data"]["children"].append(node)
+        else:
+            roots.append(node)
+    return [
+        {"kind": "Listing", "data": {"children": [{"kind": "t3", "data": post}]}},
+        {"kind": "Listing", "data": {"children": roots}},
+    ]
+
+
+def fetch_reddit(thread_url: str, sort: str):
+    for host in ("www.reddit.com", "old.reddit.com"):
+        status, payload = fetch_json(to_json_url(thread_url, sort, host))
+        if status == 200 and has_post(payload):
+            return payload
+        if status not in (429, 403):
+            break
+    return None
+
+
+def fetch_pullpush(thread_url: str, sort: str):
+    post_id = thread_id(thread_url)
+    if not post_id:
+        return None
+    if sort == "old":
+        order = {"sort": "asc", "sort_type": "created_utc"}
+    elif sort == "new":
+        order = {"sort": "desc", "sort_type": "created_utc"}
+    else:
+        order = {"sort": "desc", "sort_type": "score"}
+    post_qs = urlencode({"ids": post_id})
+    comment_qs = urlencode({
+        "link_id": f"t3_{post_id}",
+        "size": 100,
+        "sort": order["sort"],
+        "sort_type": order["sort_type"],
+    })
+    _, post_payload = fetch_json(f"https://api.pullpush.io/reddit/search/submission/?{post_qs}")
+    _, comment_payload = fetch_json(f"https://api.pullpush.io/reddit/search/comment/?{comment_qs}")
+    posts = (post_payload or {}).get("data") or []
+    if not posts or not posts[0].get("id"):
+        return None
+    comments = (comment_payload or {}).get("data") or []
+    return rebuild_listing(posts[0], comments)
+
+
+class Handler(SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=str(ROOT), **kwargs)
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        if parsed.path in ("/api/thread", "/rmr/api/thread"):
+            return self.handle_thread(parsed)
+        return super().do_GET()
+
+    def handle_thread(self, parsed):
+        qs = parse_qs(parsed.query)
+        raw = (qs.get("url") or [""])[0].strip()
+        sort = (qs.get("sort") or ["best"])[0].strip() or "best"
+        if not raw or not is_thread(raw):
+            return self.json(400, {"error": "Pass a reddit.com /comments/ thread URL as ?url="})
+        thread = normalize(raw)
+        try:
+            payload = fetch_reddit(thread, sort) or fetch_pullpush(thread, sort)
+        except Exception as err:
+            return self.json(502, {"error": str(err)})
+        if not payload:
+            return self.json(502, {"error": "Could not load that Reddit thread."})
+        return self.json(200, payload)
+
+    def json(self, status, payload):
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+if __name__ == "__main__":
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else PORT
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    print(f"RMR web http://127.0.0.1:{port}/")
+    server.serve_forever()
