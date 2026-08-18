@@ -1,25 +1,45 @@
 const REDDIT_UA = 'ArTReader-RMR/1.0 (https://artreader.art/rmr)';
 
+function parseRedditInput(raw) {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return null;
+  try {
+    return new URL(/^[a-zA-Z][a-zA-Z+\-.]*:/.test(trimmed) ? trimmed : `https://${trimmed}`);
+  } catch {
+    return null;
+  }
+}
+
+function isReddItHost(hostname) {
+  return /(^|\.)redd\.it$/i.test(hostname || '');
+}
+
 function isRedditHost(url) {
   try {
-    return /(^|\.)reddit\.com$/i.test(new URL(url).hostname);
+    const host = new URL(url).hostname;
+    return /(^|\.)reddit\.com$/i.test(host) || isReddItHost(host);
   } catch {
     return false;
   }
 }
 
 function isRedditThreadUrl(url) {
-  try {
-    const u = new URL(url);
-    if (!isRedditHost(url)) return false;
-    return /\/(?:r\/[^/]+|u(?:ser)?\/[^/]+)\/comments\/[^/]+/i.test(u.pathname);
-  } catch {
-    return false;
+  const u = parseRedditInput(url);
+  if (!u) return false;
+  if (isReddItHost(u.hostname)) {
+    return /^\/[A-Za-z0-9]+\/?$/.test(u.pathname);
   }
+  if (!/(^|\.)reddit\.com$/i.test(u.hostname)) return false;
+  return /\/comments\/[^/]+/i.test(u.pathname) || /\/s\/[^/]+/i.test(u.pathname);
 }
 
 function normalizeRedditThreadUrl(url) {
-  const u = new URL(url);
+  const u = parseRedditInput(url);
+  if (!u) throw new Error('Invalid Reddit URL');
+  if (isReddItHost(u.hostname)) {
+    const id = u.pathname.replace(/\//g, '');
+    return `https://www.reddit.com/comments/${id}`;
+  }
   if (/^(old|sh|new)\.reddit\.com$/i.test(u.hostname)) {
     u.hostname = 'www.reddit.com';
   } else if (u.hostname === 'reddit.com') {
@@ -36,8 +56,34 @@ function toRedditSortParam(sort) {
 }
 
 function threadIdFromUrl(url) {
-  const match = new URL(url).pathname.match(/\/comments\/([^/]+)/i);
-  return match ? match[1] : '';
+  const u = parseRedditInput(url);
+  if (!u) return '';
+  if (isReddItHost(u.hostname)) {
+    return u.pathname.replace(/\//g, '');
+  }
+  const comments = u.pathname.match(/\/comments\/([^/]+)/i);
+  if (comments) return comments[1];
+  return '';
+}
+
+async function followShareShortlink(url) {
+  let current = url;
+  for (let i = 0; i < 6; i += 1) {
+    const parsed = parseRedditInput(current);
+    if (!parsed) break;
+    if (isReddItHost(parsed.hostname) || /\/comments\/[^/]+/i.test(parsed.pathname)) {
+      return normalizeRedditThreadUrl(current);
+    }
+    const res = await fetch(current, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: { Accept: 'text/html', 'User-Agent': REDDIT_UA }
+    });
+    const location = res.headers.get('location');
+    if (!location) break;
+    current = new URL(location, current).toString();
+  }
+  return normalizeRedditThreadUrl(current);
 }
 
 function toJsonUrl(threadUrl, sort, host) {
@@ -183,11 +229,14 @@ exports.handler = async (event) => {
     return {
       statusCode: 400,
       headers,
-      body: JSON.stringify({ error: 'Pass a reddit.com /comments/ thread URL as ?url=' })
+      body: JSON.stringify({ error: 'Pass a reddit.com, redd.it, or /s/ thread link as ?url=' })
     };
   }
 
-  const threadUrl = normalizeRedditThreadUrl(rawUrl);
+  const parsed = parseRedditInput(rawUrl);
+  const threadUrl = parsed && /\/s\/[^/]+/i.test(parsed.pathname)
+    ? await followShareShortlink(rawUrl)
+    : normalizeRedditThreadUrl(rawUrl);
   const failures = [];
   try {
     const fromReddit = await fetchFromReddit(threadUrl, sort);

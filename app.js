@@ -133,27 +133,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     rangeEl.style.background = `linear-gradient(to right, ${fillColor} ${percent}%, var(--tier-track-background) ${percent}%)`;
   }
 
+  function parseRedditInput(raw) {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return null;
+    try {
+      return new URL(/^[a-zA-Z][a-zA-Z+\-.]*:/.test(trimmed) ? trimmed : `https://${trimmed}`);
+    } catch {
+      return null;
+    }
+  }
+
+  function isReddItHost(hostname) {
+    return /(^|\.)redd\.it$/i.test(hostname || '');
+  }
+
   function isRedditHost(url) {
     try {
-      return /(^|\.)reddit\.com$/i.test(new URL(url).hostname);
+      const host = new URL(url).hostname;
+      return /(^|\.)reddit\.com$/i.test(host) || isReddItHost(host);
     } catch {
       return false;
     }
   }
 
   function isRedditThreadUrl(url) {
-    try {
-      const u = new URL(url);
-      if (!isRedditHost(url)) return false;
-      // /r/sub/comments/id and profile posts /user/name/comments/id (or /u/name/...)
-      return /\/(?:r\/[^/]+|u(?:ser)?\/[^/]+)\/comments\/[^/]+/i.test(u.pathname);
-    } catch {
-      return false;
+    const u = parseRedditInput(url);
+    if (!u) return false;
+    if (isReddItHost(u.hostname)) {
+      return /^\/[A-Za-z0-9]+\/?$/.test(u.pathname);
     }
+    if (!/(^|\.)reddit\.com$/i.test(u.hostname)) return false;
+    return /\/comments\/[^/]+/i.test(u.pathname) || /\/s\/[^/]+/i.test(u.pathname);
   }
 
   function normalizeRedditThreadUrl(url) {
-    const u = new URL(url);
+    const u = parseRedditInput(url);
+    if (!u) throw new Error('Invalid Reddit URL');
+    if (isReddItHost(u.hostname)) {
+      const id = u.pathname.replace(/\//g, '');
+      return `https://www.reddit.com/comments/${id}`;
+    }
     if (/^(old|sh|new)\.reddit\.com$/i.test(u.hostname)) {
       u.hostname = 'www.reddit.com';
     } else if (u.hostname === 'reddit.com') {
@@ -310,7 +329,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!isRedditThreadUrl(rawUrl)) {
         setNeedThreadGate(false);
         ui.subreddit.textContent = 'Not a thread URL';
-        ui.title.textContent = 'Use a reddit.com /comments/ link.';
+        ui.title.textContent = 'Use a reddit.com, redd.it, or share /s/ link.';
         ui.title.classList.add('is-error');
         ui.title.classList.remove('truncate');
         return;

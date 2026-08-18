@@ -14,33 +14,89 @@ UA = "ArTReader-RMR/1.0 (https://artreader.art/rmr)"
 PORT = 8777
 
 
-def is_thread(url: str) -> bool:
+def parse_input(url: str):
+    raw = (url or "").strip()
+    if not raw:
+        return None
+    if "://" not in raw:
+        raw = f"https://{raw}"
     try:
-        u = urlparse(url)
+        return urlparse(raw)
     except ValueError:
+        return None
+
+
+def is_reddit_host(host: str) -> bool:
+    host = (host or "").lower()
+    return host == "reddit.com" or host.endswith(".reddit.com") or host == "redd.it" or host.endswith(".redd.it")
+
+
+def is_thread(url: str) -> bool:
+    u = parse_input(url)
+    if not u:
         return False
     host = (u.hostname or "").lower()
-    if not (host == "reddit.com" or host.endswith(".reddit.com")):
+    path = u.path or ""
+    if host == "redd.it" or host.endswith(".redd.it"):
+        return bool(path.strip("/"))
+    if not is_reddit_host(host):
         return False
-    return "/comments/" in (u.path or "")
+    return "/comments/" in path or "/s/" in path
 
 
 def normalize(url: str) -> str:
-    u = urlparse(url)
+    u = parse_input(url)
+    if not u:
+        raise ValueError("Invalid Reddit URL")
     host = (u.hostname or "").lower()
+    path = (u.path or "").rstrip("/")
+    if host == "redd.it" or host.endswith(".redd.it"):
+        post_id = path.strip("/")
+        return f"https://www.reddit.com/comments/{post_id}"
     if host in ("old.reddit.com", "sh.reddit.com", "new.reddit.com", "reddit.com"):
         host = "www.reddit.com"
-    path = (u.path or "").rstrip("/")
     return f"https://{host}{path}"
 
 
 def thread_id(url: str) -> str:
-    parts = (urlparse(url).path or "").split("/")
+    u = parse_input(url)
+    if not u:
+        return ""
+    host = (u.hostname or "").lower()
+    parts = [p for p in (u.path or "").split("/") if p]
+    if host == "redd.it" or host.endswith(".redd.it"):
+        return parts[0] if parts else ""
     if "comments" in parts:
         i = parts.index("comments")
         if i + 1 < len(parts):
             return parts[i + 1]
     return ""
+
+
+def follow_share(url: str) -> str:
+    current = url if "://" in url else f"https://{url}"
+    for _ in range(6):
+        parsed = parse_input(current)
+        if not parsed:
+            break
+        host = (parsed.hostname or "").lower()
+        path = parsed.path or ""
+        if host.endswith("redd.it") or "/comments/" in path:
+            return normalize(current)
+        req = Request(current, headers={"Accept": "text/html", "User-Agent": UA}, method="GET")
+        try:
+            with urlopen(req, timeout=15) as res:
+                current = res.geturl()
+                continue
+        except HTTPError as err:
+            loc = err.headers.get("Location") if err.headers else None
+            if not loc:
+                break
+            current = loc if loc.startswith("http") else f"{parsed.scheme}://{parsed.netloc}{loc}"
+            continue
+        except (URLError, TimeoutError):
+            break
+    return normalize(current)
 
 
 def to_json_url(thread_url: str, sort: str, host: str) -> str:
@@ -157,8 +213,9 @@ class Handler(SimpleHTTPRequestHandler):
         raw = (qs.get("url") or [""])[0].strip()
         sort = (qs.get("sort") or ["best"])[0].strip() or "best"
         if not raw or not is_thread(raw):
-            return self.json(400, {"error": "Pass a reddit.com /comments/ thread URL as ?url="})
-        thread = normalize(raw)
+            return self.json(400, {"error": "Pass a reddit.com, redd.it, or /s/ thread link as ?url="})
+        parsed = parse_input(raw)
+        thread = follow_share(raw) if parsed and "/s/" in (parsed.path or "") else normalize(raw)
         try:
             payload = fetch_reddit(thread, sort) or fetch_pullpush(thread, sort)
         except Exception as err:
