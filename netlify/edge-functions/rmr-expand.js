@@ -1,5 +1,4 @@
-const BROWSER_UA =
-  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+const SHARE_EXPAND_URL = 'https://rmr-share-expand-375541022505.us-central1.run.app';
 
 export default async (request) => {
   const incoming = new URL(request.url);
@@ -8,18 +7,10 @@ export default async (request) => {
     return Response.json({ error: 'Pass ?url=' }, { status: 400 });
   }
 
-  const res = await fetch(target, {
-    method: 'GET',
-    redirect: 'manual',
-    headers: {
-      Accept: 'text/html,application/xhtml+xml',
-      'User-Agent': BROWSER_UA
-    }
-  });
-
-  return Response.json({
-    status: res.status,
-    location: res.headers.get('location') || '',
-    finalUrl: res.url || ''
-  });
+  const res = await fetch(
+    `${SHARE_EXPAND_URL}/expand?url=${encodeURIComponent(target)}`,
+    { headers: { Accept: 'application/json' } }
+  );
+  const body = await res.json().catch(() => ({ error: 'expand failed' }));
+  return Response.json(body, { status: res.status });
 };

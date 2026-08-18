@@ -8,6 +8,7 @@ import re
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 import json
+import os
 import sys
 
 ROOT = Path(__file__).resolve().parent
@@ -74,6 +75,10 @@ def thread_id(url: str) -> str:
     return ""
 
 
+SHARE_EXPAND_URL = os.environ.get(
+    "RMR_SHARE_EXPAND_URL",
+    "https://rmr-share-expand-375541022505.us-central1.run.app",
+).rstrip("/")
 BROWSER_UA = (
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
     "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
@@ -94,29 +99,14 @@ def comments_url_from_text(text: str) -> str:
     return f"https://www.reddit.com/comments/{match.group(1)}"
 
 
-def expand_via_jina(url: str) -> str:
-    api = f"https://r.jina.ai/{url}"
-    req = Request(api, headers={"Accept": "text/plain", "User-Agent": BROWSER_UA})
-    try:
-        with urlopen(req, timeout=20) as res:
-            text = res.read().decode("utf-8", "replace")
-    except HTTPError as err:
-        text = err.read().decode("utf-8", "replace") if err.fp else ""
-        raise RuntimeError(f"Jina could not expand the share link (HTTP {err.code}).") from err
-    found = comments_url_from_text(text)
-    if not found:
-        raise RuntimeError("Jina could not expand the share link.")
-    return found
-
-
-def expand_via_microlink(url: str) -> str:
-    api = "https://api.microlink.io/?url=" + quote(url, safe="")
+def expand_via_oauth_service(url: str) -> str:
+    api = f"{SHARE_EXPAND_URL}/expand?url={quote(url, safe='')}"
     status, payload = fetch_json(api)
-    blob = json.dumps(payload or {})
-    found = comments_url_from_text(blob)
+    found = comments_url_from_text((payload or {}).get("commentsUrl") or "")
     if found:
         return found
-    raise RuntimeError(f"Microlink could not expand the share link (HTTP {status}).")
+    detail = (payload or {}).get("error") or f"HTTP {status}"
+    raise RuntimeError(f"OAuth expand failed ({detail}).")
 
 
 def expand_via_reddit_redirect(url: str) -> str:
@@ -145,11 +135,7 @@ def expand_via_reddit_redirect(url: str) -> str:
 def follow_share(url: str) -> str:
     errors = []
     try:
-        return expand_via_jina(url)
-    except Exception as err:
-        errors.append(str(err))
-    try:
-        return expand_via_microlink(url)
+        return expand_via_oauth_service(url)
     except Exception as err:
         errors.append(str(err))
     try:

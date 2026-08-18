@@ -1,6 +1,7 @@
 const REDDIT_UA = 'ArTReader-RMR/1.0 (https://artreader.art/rmr)';
-const BROWSER_UA =
-  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+const SHARE_EXPAND_URL =
+  process.env.RMR_SHARE_EXPAND_URL ||
+  'https://rmr-share-expand-375541022505.us-central1.run.app';
 
 function parseRedditInput(raw) {
   const trimmed = String(raw || '').trim();
@@ -95,99 +96,24 @@ function requireCommentsUrl(url, detail) {
   throw new Error(detail || 'Could not expand that Reddit share link. Open it once and paste the /comments/ URL from the address bar.');
 }
 
-async function expandViaEdge(url) {
-  const api = `https://artreader.art/rmr/api/expand?url=${encodeURIComponent(url)}`;
+async function expandViaOAuthService(url) {
+  const api = `${SHARE_EXPAND_URL.replace(/\/+$/, '')}/expand?url=${encodeURIComponent(url)}`;
   const res = await fetch(api, { headers: { Accept: 'application/json' } });
   const body = await res.json().catch(() => null);
-  const found =
-    commentsUrlFromText(body?.location || '') ||
-    commentsUrlFromText(body?.finalUrl || '');
-  if (!found) {
-    throw new Error(`Edge expand failed (HTTP ${res.status}${body?.location ? '' : ', no Location'}).`);
-  }
-  return found;
-}
-
-async function expandViaJina(url) {
-  const api = `https://r.jina.ai/${url}`;
-  const res = await fetch(api, { headers: { Accept: 'text/plain', 'User-Agent': BROWSER_UA } });
-  const text = await res.text();
-  const found = commentsUrlFromText(text);
-  if (!found) {
-    throw new Error(`Jina could not expand the share link (HTTP ${res.status}).`);
-  }
-  return found;
-}
-
-async function expandViaMicrolink(url) {
-  const api = `https://api.microlink.io/?url=${encodeURIComponent(url)}`;
-  const res = await fetch(api, { headers: { Accept: 'application/json' } });
-  const body = await res.json().catch(() => null);
-  const resolved = body?.data?.url || body?.data?.publisher || '';
-  const found = commentsUrlFromText(JSON.stringify(body || {})) || commentsUrlFromText(resolved);
-  if (!found) {
-    throw new Error(body?.data?.url || body?.message || `Microlink could not expand the share link (HTTP ${res.status}).`);
-  }
-  return found;
-}
-
-async function expandViaRedditRedirect(url) {
-  const hosts = ['www.reddit.com', 'old.reddit.com'];
-  const parsed = parseRedditInput(url);
-  const sharePath = parsed ? parsed.pathname : '';
-  for (const host of hosts) {
-    const target = `https://${host}${sharePath}`;
-    const res = await fetch(target, {
-      method: 'GET',
-      redirect: 'manual',
-      headers: { Accept: 'text/html,application/xhtml+xml', 'User-Agent': BROWSER_UA }
-    });
-    const location = res.headers.get('location');
-    if (location) {
-      return requireCommentsUrl(new URL(location, target).toString(), 'Share redirect had no post id.');
-    }
-    const followed = await fetch(target, {
-      method: 'GET',
-      redirect: 'follow',
-      headers: { Accept: 'text/html,application/xhtml+xml', 'User-Agent': BROWSER_UA }
-    });
-    if (followed.url) {
-      try {
-        return requireCommentsUrl(followed.url, 'Followed share URL had no post id.');
-      } catch {
-        // try next host
-      }
-    }
-  }
-  throw new Error('Reddit did not return a /comments/ URL for that share link.');
+  const found = commentsUrlFromText(body?.commentsUrl || '');
+  if (found) return found;
+  throw new Error(body?.error || `OAuth expand failed (HTTP ${res.status}).`);
 }
 
 async function expandShareShortlink(url) {
   if (!isSharePath(url)) return normalizeRedditThreadUrl(url);
-  const errors = [];
   try {
-    return await expandViaEdge(url);
+    return requireCommentsUrl(await expandViaOAuthService(url), 'OAuth expand had no post id.');
   } catch (error) {
-    errors.push(error.message || 'edge expand failed');
+    throw new Error(
+      `${error.message || 'OAuth expand failed'}. Open it once and paste the /comments/ URL from the address bar.`
+    );
   }
-  try {
-    return await expandViaJina(url);
-  } catch (error) {
-    errors.push(error.message || 'jina failed');
-  }
-  try {
-    return await expandViaMicrolink(url);
-  } catch (error) {
-    errors.push(error.message || 'microlink failed');
-  }
-  try {
-    return await expandViaRedditRedirect(url);
-  } catch (error) {
-    errors.push(error.message || 'reddit redirect failed');
-  }
-  throw new Error(
-    `Could not expand that Reddit share link (${errors.join('; ')}). Open it once and paste the /comments/ URL from the address bar.`
-  );
 }
 
 function toJsonUrl(threadUrl, sort, host) {

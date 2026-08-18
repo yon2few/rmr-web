@@ -17,6 +17,10 @@ Do not load `engine/index.js`. Brand is the slideshow photograph.
 | Transform URL | `https://read-me-reddit-transform-service-375541022505.us-central1.run.app` |
 | GitHub | `yon2few/rmr-web` |
 | Script | `deploy-rmr-web.sh` |
+| Share expand | `rmr-share-expand` |
+| Share expand URL | `https://rmr-share-expand-375541022505.us-central1.run.app` |
+| Reddit OAuth secrets | `reddit-client-id`, `reddit-client-secret` |
+| Share expand script | `deploy-rmr-share-expand-cloudrun.sh` |
 
 GCP project: **`artreader`**.
 
@@ -37,11 +41,14 @@ Browsers cannot call reddit.com from `artreader.art` (CORS). The page
 fetches `api/thread?url=&sort=`. Production maps `/rmr/api/thread` to
 the Netlify function. Local: `python3 dev-server.py`.
 
-App Share → Copy link is `/r/{sub}/s/{token}`, not a post id. That
-token only becomes `/comments/{id}` via Reddit's 301. Datacenter IPs
-(Netlify functions, Netlify Edge, Cloud Run `rmr-share-expand`,
-Microlink, Jina) get 403 with no `Location`. Residential curl works.
-Do not send an unresolved `/s/` URL into Arctic/Pullpush.
+App Share → Copy link is `/r/{sub}/s/{token}`, not a post id. Resolve
+it with authenticated Reddit OAuth on Cloud Run `rmr-share-expand`
+(`POST /api/v1/access_token` then `GET oauth.reddit.com` with
+`redirect: manual`). Unauthenticated fetches from Netlify / Cloud Run /
+Microlink / Jina get 403 with no `Location`. Do not send an unresolved
+`/s/` URL into Arctic/Pullpush. Create the Reddit script app at
+`https://www.reddit.com/prefs/apps`. First expander deploy:
+`REDDIT_CLIENT_ID=… REDDIT_CLIENT_SECRET=… ./deploy-rmr-share-expand-cloudrun.sh`.
 
 ## Local harness
 
