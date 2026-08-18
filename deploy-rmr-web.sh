@@ -67,6 +67,7 @@ echo "Starting Netlify production deploy for /rmr"
 
 CI=1 netlify deploy \
   --prod \
+  --skip-functions-cache \
   --dir "${BUILD_DIR}" \
   --site "${ARTREADER_SITE_ID}" \
   --message "Publish Read Me Reddit web app at /rmr"

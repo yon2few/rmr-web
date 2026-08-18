@@ -131,7 +131,7 @@ function pullpushSort(sort) {
 
 async function fetchFromPullpush(threadUrl, sort) {
   const id = threadIdFromUrl(threadUrl);
-  if (!id) return null;
+  if (!id) throw new Error('Thread id missing from URL.');
   const order = pullpushSort(sort);
   const postUrl = `https://api.pullpush.io/reddit/search/submission/?ids=${encodeURIComponent(id)}`;
   const commentUrl =
@@ -139,7 +139,28 @@ async function fetchFromPullpush(threadUrl, sort) {
     `&size=100&sort=${order.sort}&sort_type=${order.sort_type}`;
   const [postRes, commentRes] = await Promise.all([fetchJson(postUrl), fetchJson(commentUrl)]);
   const post = postRes.json?.data?.[0];
-  if (!post?.id) return null;
+  if (!post?.id) {
+    throw new Error(
+      `Archive post lookup failed (HTTP ${postRes.status}${postRes.json ? '' : ', non-JSON'}).`
+    );
+  }
+  const comments = Array.isArray(commentRes.json?.data) ? commentRes.json.data : [];
+  return rebuildListing(post, comments);
+}
+
+async function fetchFromArcticShift(threadUrl) {
+  const id = threadIdFromUrl(threadUrl);
+  if (!id) throw new Error('Thread id missing from URL.');
+  const postUrl = `https://arctic-shift.photon-reddit.com/api/posts/ids?ids=${encodeURIComponent(id)}`;
+  const commentUrl =
+    `https://arctic-shift.photon-reddit.com/api/comments/search?link_id=${encodeURIComponent(id)}&limit=100`;
+  const [postRes, commentRes] = await Promise.all([fetchJson(postUrl), fetchJson(commentUrl)]);
+  const post = postRes.json?.data?.[0];
+  if (!post?.id) {
+    throw new Error(
+      `Arctic post lookup failed (HTTP ${postRes.status}${postRes.json ? '' : ', non-JSON'}).`
+    );
+  }
   const comments = Array.isArray(commentRes.json?.data) ? commentRes.json.data : [];
   return rebuildListing(post, comments);
 }
@@ -167,14 +188,26 @@ exports.handler = async (event) => {
   }
 
   const threadUrl = normalizeRedditThreadUrl(rawUrl);
+  const failures = [];
   try {
     const fromReddit = await fetchFromReddit(threadUrl, sort);
     if (fromReddit) {
       return { statusCode: 200, headers, body: JSON.stringify(fromReddit) };
     }
-    const fromArchive = await fetchFromPullpush(threadUrl, sort);
-    if (fromArchive) {
-      return { statusCode: 200, headers, body: JSON.stringify(fromArchive) };
+    failures.push('reddit blocked or empty');
+
+    try {
+      const fromArchive = await fetchFromPullpush(threadUrl, sort);
+      if (fromArchive) {
+        return { statusCode: 200, headers, body: JSON.stringify(fromArchive) };
+      }
+    } catch (archiveError) {
+      failures.push(archiveError.message || 'pullpush failed');
+    }
+
+    const fromArctic = await fetchFromArcticShift(threadUrl);
+    if (fromArctic) {
+      return { statusCode: 200, headers, body: JSON.stringify(fromArctic) };
     }
   } catch (error) {
     return {
@@ -187,6 +220,6 @@ exports.handler = async (event) => {
   return {
     statusCode: 502,
     headers,
-    body: JSON.stringify({ error: 'Could not load that Reddit thread.' })
+    body: JSON.stringify({ error: `Could not load that Reddit thread (${failures.join('; ')}).` })
   };
 };
