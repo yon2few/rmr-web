@@ -1,4 +1,6 @@
 const REDDIT_UA = 'ArTReader-RMR/1.0 (https://artreader.art/rmr)';
+const BROWSER_UA =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
 function parseRedditInput(raw) {
   const trimmed = String(raw || '').trim();
@@ -66,24 +68,92 @@ function threadIdFromUrl(url) {
   return '';
 }
 
-async function followShareShortlink(url) {
-  let current = url;
-  for (let i = 0; i < 6; i += 1) {
-    const parsed = parseRedditInput(current);
-    if (!parsed) break;
-    if (isReddItHost(parsed.hostname) || /\/comments\/[^/]+/i.test(parsed.pathname)) {
-      return normalizeRedditThreadUrl(current);
-    }
-    const res = await fetch(current, {
+function commentsUrlFromText(text) {
+  const match = String(text || '').match(/https?:\/\/(?:www\.|old\.)?reddit\.com\/(?:r\/[^/]+\/|u(?:ser)?\/[^/]+\/)?comments\/([A-Za-z0-9]+)/i);
+  if (!match) return '';
+  const id = match[1];
+  const sub = String(text || '').match(/reddit\.com\/r\/([^/]+)\/comments\//i);
+  if (sub) return `https://www.reddit.com/r/${sub[1]}/comments/${id}`;
+  return `https://www.reddit.com/comments/${id}`;
+}
+
+function isSharePath(url) {
+  const parsed = parseRedditInput(url);
+  return Boolean(parsed && /\/s\/[^/]+/i.test(parsed.pathname));
+}
+
+function requireCommentsUrl(url, detail) {
+  const id = threadIdFromUrl(url);
+  if (id) {
+    const parsed = parseRedditInput(url);
+    const sub = parsed?.pathname.match(/^\/r\/([^/]+)\//i);
+    if (sub) return `https://www.reddit.com/r/${sub[1]}/comments/${id}`;
+    return `https://www.reddit.com/comments/${id}`;
+  }
+  const fromText = commentsUrlFromText(url);
+  if (fromText) return fromText;
+  throw new Error(detail || 'Could not expand that Reddit share link. Open it once and paste the /comments/ URL from the address bar.');
+}
+
+async function expandViaMicrolink(url) {
+  const api = `https://api.microlink.io/?url=${encodeURIComponent(url)}`;
+  const res = await fetch(api, { headers: { Accept: 'application/json' } });
+  const body = await res.json().catch(() => null);
+  const resolved = body?.data?.url || body?.data?.publisher || '';
+  const found = commentsUrlFromText(JSON.stringify(body || {})) || commentsUrlFromText(resolved);
+  if (!found) {
+    throw new Error(body?.data?.url || body?.message || `Microlink could not expand the share link (HTTP ${res.status}).`);
+  }
+  return found;
+}
+
+async function expandViaRedditRedirect(url) {
+  const hosts = ['www.reddit.com', 'old.reddit.com'];
+  const parsed = parseRedditInput(url);
+  const sharePath = parsed ? parsed.pathname : '';
+  for (const host of hosts) {
+    const target = `https://${host}${sharePath}`;
+    const res = await fetch(target, {
       method: 'GET',
       redirect: 'manual',
-      headers: { Accept: 'text/html', 'User-Agent': REDDIT_UA }
+      headers: { Accept: 'text/html,application/xhtml+xml', 'User-Agent': BROWSER_UA }
     });
     const location = res.headers.get('location');
-    if (!location) break;
-    current = new URL(location, current).toString();
+    if (location) {
+      return requireCommentsUrl(new URL(location, target).toString(), 'Share redirect had no post id.');
+    }
+    const followed = await fetch(target, {
+      method: 'GET',
+      redirect: 'follow',
+      headers: { Accept: 'text/html,application/xhtml+xml', 'User-Agent': BROWSER_UA }
+    });
+    if (followed.url) {
+      try {
+        return requireCommentsUrl(followed.url, 'Followed share URL had no post id.');
+      } catch {
+        // try next host
+      }
+    }
   }
-  return normalizeRedditThreadUrl(current);
+  throw new Error('Reddit did not return a /comments/ URL for that share link.');
+}
+
+async function expandShareShortlink(url) {
+  if (!isSharePath(url)) return normalizeRedditThreadUrl(url);
+  const errors = [];
+  try {
+    return await expandViaMicrolink(url);
+  } catch (error) {
+    errors.push(error.message || 'microlink failed');
+  }
+  try {
+    return await expandViaRedditRedirect(url);
+  } catch (error) {
+    errors.push(error.message || 'reddit redirect failed');
+  }
+  throw new Error(
+    `Could not expand that Reddit share link (${errors.join('; ')}). Open it once and paste the /comments/ URL from the address bar.`
+  );
 }
 
 function toJsonUrl(threadUrl, sort, host) {
@@ -233,10 +303,27 @@ exports.handler = async (event) => {
     };
   }
 
-  const parsed = parseRedditInput(rawUrl);
-  const threadUrl = parsed && /\/s\/[^/]+/i.test(parsed.pathname)
-    ? await followShareShortlink(rawUrl)
-    : normalizeRedditThreadUrl(rawUrl);
+  let threadUrl;
+  try {
+    threadUrl = isSharePath(rawUrl)
+      ? await expandShareShortlink(rawUrl)
+      : normalizeRedditThreadUrl(rawUrl);
+  } catch (error) {
+    return {
+      statusCode: 502,
+      headers,
+      body: JSON.stringify({ error: error.message || 'Could not expand that Reddit share link.' })
+    };
+  }
+  if (!threadIdFromUrl(threadUrl)) {
+    return {
+      statusCode: 502,
+      headers,
+      body: JSON.stringify({
+        error: 'Could not expand that Reddit share link. Open it once and paste the /comments/ URL from the address bar.'
+      })
+    };
+  }
   const failures = [];
   try {
     const fromReddit = await fetchFromReddit(threadUrl, sort);

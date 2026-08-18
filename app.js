@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       subreddit: facts.subreddit,
       totalChars: postChars + commentChars + replyChars + replyChildChars,
       segments: { postChars, commentChars, replyChars, replyChildChars },
-      flatData: facts
+      flatData: { ...facts, permalink: postData?.permalink || '' }
     };
   }
 
@@ -718,6 +718,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     ui.subreddit.textContent = data.subreddit || 'r/unknown';
     ui.time.textContent = formatTime(data.totalChars);
     updateMetricsUI(data);
+    const permalink = data.flatData?.permalink || lastThreadJson?.[0]?.data?.children?.[0]?.data?.permalink;
+    if (permalink && ui.threadUrlInput) {
+      const full = permalink.startsWith('http')
+        ? permalink.replace(/\/+$/, '')
+        : `https://www.reddit.com${String(permalink).replace(/\/+$/, '')}`;
+      ui.threadUrlInput.value = full;
+      currentTabUrl = normalizeRedditThreadUrl(full);
+      const next = new URL(window.location.href);
+      next.searchParams.set('redditUrl', currentTabUrl);
+      window.history.replaceState({}, '', next);
+    }
   }
 
   ui.resetBtn.addEventListener('click', () => {

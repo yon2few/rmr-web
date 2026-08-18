@@ -3,7 +3,8 @@
 
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse, urlencode
+from urllib.parse import parse_qs, urlparse, urlencode, quote
+import re
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 import json
@@ -73,30 +74,74 @@ def thread_id(url: str) -> str:
     return ""
 
 
-def follow_share(url: str) -> str:
-    current = url if "://" in url else f"https://{url}"
-    for _ in range(6):
-        parsed = parse_input(current)
-        if not parsed:
-            break
-        host = (parsed.hostname or "").lower()
-        path = parsed.path or ""
-        if host.endswith("redd.it") or "/comments/" in path:
-            return normalize(current)
-        req = Request(current, headers={"Accept": "text/html", "User-Agent": UA}, method="GET")
+BROWSER_UA = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+)
+
+
+def comments_url_from_text(text: str) -> str:
+    match = re.search(
+        r"https?://(?:www\.|old\.)?reddit\.com/(?:r/[^/]+/|u(?:ser)?/[^/]+/)?comments/([A-Za-z0-9]+)",
+        text or "",
+        re.I,
+    )
+    if not match:
+        return ""
+    sub = re.search(r"reddit\.com/r/([^/]+)/comments/", text or "", re.I)
+    if sub:
+        return f"https://www.reddit.com/r/{sub.group(1)}/comments/{match.group(1)}"
+    return f"https://www.reddit.com/comments/{match.group(1)}"
+
+
+def expand_via_microlink(url: str) -> str:
+    api = "https://api.microlink.io/?url=" + quote(url, safe="")
+    status, payload = fetch_json(api)
+    blob = json.dumps(payload or {})
+    found = comments_url_from_text(blob)
+    if found:
+        return found
+    raise RuntimeError(f"Microlink could not expand the share link (HTTP {status}).")
+
+
+def expand_via_reddit_redirect(url: str) -> str:
+    parsed = parse_input(url)
+    share_path = parsed.path if parsed else ""
+    for host in ("www.reddit.com", "old.reddit.com"):
+        target = f"https://{host}{share_path}"
+        req = Request(target, headers={"Accept": "text/html", "User-Agent": BROWSER_UA}, method="GET")
         try:
             with urlopen(req, timeout=15) as res:
-                current = res.geturl()
-                continue
+                found = comments_url_from_text(res.geturl())
+                if found:
+                    return found
         except HTTPError as err:
             loc = err.headers.get("Location") if err.headers else None
-            if not loc:
-                break
-            current = loc if loc.startswith("http") else f"{parsed.scheme}://{parsed.netloc}{loc}"
-            continue
+            if loc:
+                loc = loc if loc.startswith("http") else f"https://{host}{loc}"
+                found = comments_url_from_text(loc)
+                if found:
+                    return found
         except (URLError, TimeoutError):
-            break
-    return normalize(current)
+            continue
+    raise RuntimeError("Reddit did not return a /comments/ URL for that share link.")
+
+
+def follow_share(url: str) -> str:
+    errors = []
+    try:
+        return expand_via_microlink(url)
+    except Exception as err:
+        errors.append(str(err))
+    try:
+        return expand_via_reddit_redirect(url)
+    except Exception as err:
+        errors.append(str(err))
+    raise RuntimeError(
+        "Could not expand that Reddit share link ("
+        + "; ".join(errors)
+        + "). Open it once and paste the /comments/ URL from the address bar."
+    )
 
 
 def to_json_url(thread_url: str, sort: str, host: str) -> str:
@@ -198,6 +243,23 @@ def fetch_pullpush(thread_url: str, sort: str):
     return rebuild_listing(posts[0], comments)
 
 
+def fetch_arctic(thread_url: str):
+    post_id = thread_id(thread_url)
+    if not post_id:
+        return None
+    _, post_payload = fetch_json(
+        f"https://arctic-shift.photon-reddit.com/api/posts/ids?ids={quote(post_id, safe='')}"
+    )
+    _, comment_payload = fetch_json(
+        f"https://arctic-shift.photon-reddit.com/api/comments/search?link_id={quote(post_id, safe='')}&limit=100"
+    )
+    posts = (post_payload or {}).get("data") or []
+    if not posts or not posts[0].get("id"):
+        return None
+    comments = (comment_payload or {}).get("data") or []
+    return rebuild_listing(posts[0], comments)
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -215,9 +277,16 @@ class Handler(SimpleHTTPRequestHandler):
         if not raw or not is_thread(raw):
             return self.json(400, {"error": "Pass a reddit.com, redd.it, or /s/ thread link as ?url="})
         parsed = parse_input(raw)
-        thread = follow_share(raw) if parsed and "/s/" in (parsed.path or "") else normalize(raw)
         try:
-            payload = fetch_reddit(thread, sort) or fetch_pullpush(thread, sort)
+            thread = follow_share(raw) if parsed and "/s/" in (parsed.path or "") else normalize(raw)
+        except Exception as err:
+            return self.json(502, {"error": str(err)})
+        if not thread_id(thread):
+            return self.json(502, {
+                "error": "Could not expand that Reddit share link. Open it once and paste the /comments/ URL from the address bar."
+            })
+        try:
+            payload = fetch_reddit(thread, sort) or fetch_pullpush(thread, sort) or fetch_arctic(thread)
         except Exception as err:
             return self.json(502, {"error": str(err)})
         if not payload:
