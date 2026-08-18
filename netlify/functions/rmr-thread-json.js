@@ -95,6 +95,30 @@ function requireCommentsUrl(url, detail) {
   throw new Error(detail || 'Could not expand that Reddit share link. Open it once and paste the /comments/ URL from the address bar.');
 }
 
+async function expandViaEdge(url) {
+  const api = `https://artreader.art/rmr/api/expand?url=${encodeURIComponent(url)}`;
+  const res = await fetch(api, { headers: { Accept: 'application/json' } });
+  const body = await res.json().catch(() => null);
+  const found =
+    commentsUrlFromText(body?.location || '') ||
+    commentsUrlFromText(body?.finalUrl || '');
+  if (!found) {
+    throw new Error(`Edge expand failed (HTTP ${res.status}${body?.location ? '' : ', no Location'}).`);
+  }
+  return found;
+}
+
+async function expandViaJina(url) {
+  const api = `https://r.jina.ai/${url}`;
+  const res = await fetch(api, { headers: { Accept: 'text/plain', 'User-Agent': BROWSER_UA } });
+  const text = await res.text();
+  const found = commentsUrlFromText(text);
+  if (!found) {
+    throw new Error(`Jina could not expand the share link (HTTP ${res.status}).`);
+  }
+  return found;
+}
+
 async function expandViaMicrolink(url) {
   const api = `https://api.microlink.io/?url=${encodeURIComponent(url)}`;
   const res = await fetch(api, { headers: { Accept: 'application/json' } });
@@ -141,6 +165,16 @@ async function expandViaRedditRedirect(url) {
 async function expandShareShortlink(url) {
   if (!isSharePath(url)) return normalizeRedditThreadUrl(url);
   const errors = [];
+  try {
+    return await expandViaEdge(url);
+  } catch (error) {
+    errors.push(error.message || 'edge expand failed');
+  }
+  try {
+    return await expandViaJina(url);
+  } catch (error) {
+    errors.push(error.message || 'jina failed');
+  }
   try {
     return await expandViaMicrolink(url);
   } catch (error) {

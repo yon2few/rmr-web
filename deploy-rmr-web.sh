@@ -54,6 +54,10 @@ mkdir -p "${BUILD_DIR}/netlify/functions"
 cp "${SCRIPT_DIR}/netlify/functions/rmr-thread-json.js" \
   "${BUILD_DIR}/netlify/functions/rmr-thread-json.js"
 
+mkdir -p "${PROD_ROOT}/netlify/edge-functions"
+cp "${SCRIPT_DIR}/netlify/edge-functions/rmr-expand.js" \
+  "${PROD_ROOT}/netlify/edge-functions/rmr-expand.js"
+
 require_file "${RMR_BUILD_DIR}/index.html"
 require_file "${RMR_BUILD_DIR}/app.js"
 require_file "${RMR_BUILD_DIR}/host-returns.js"

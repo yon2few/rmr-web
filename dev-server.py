@@ -94,6 +94,21 @@ def comments_url_from_text(text: str) -> str:
     return f"https://www.reddit.com/comments/{match.group(1)}"
 
 
+def expand_via_jina(url: str) -> str:
+    api = f"https://r.jina.ai/{url}"
+    req = Request(api, headers={"Accept": "text/plain", "User-Agent": BROWSER_UA})
+    try:
+        with urlopen(req, timeout=20) as res:
+            text = res.read().decode("utf-8", "replace")
+    except HTTPError as err:
+        text = err.read().decode("utf-8", "replace") if err.fp else ""
+        raise RuntimeError(f"Jina could not expand the share link (HTTP {err.code}).") from err
+    found = comments_url_from_text(text)
+    if not found:
+        raise RuntimeError("Jina could not expand the share link.")
+    return found
+
+
 def expand_via_microlink(url: str) -> str:
     api = "https://api.microlink.io/?url=" + quote(url, safe="")
     status, payload = fetch_json(api)
@@ -129,6 +144,10 @@ def expand_via_reddit_redirect(url: str) -> str:
 
 def follow_share(url: str) -> str:
     errors = []
+    try:
+        return expand_via_jina(url)
+    except Exception as err:
+        errors.append(str(err))
     try:
         return expand_via_microlink(url)
     except Exception as err:

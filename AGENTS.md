@@ -37,6 +37,12 @@ Browsers cannot call reddit.com from `artreader.art` (CORS). The page
 fetches `api/thread?url=&sort=`. Production maps `/rmr/api/thread` to
 the Netlify function. Local: `python3 dev-server.py`.
 
+App Share → Copy link is `/r/{sub}/s/{token}`, not a post id. That
+token only becomes `/comments/{id}` via Reddit's 301. Datacenter IPs
+(Netlify functions, Netlify Edge, Cloud Run `rmr-share-expand`,
+Microlink, Jina) get 403 with no `Location`. Residential curl works.
+Do not send an unresolved `/s/` URL into Arctic/Pullpush.
+
 ## Local harness
 
 ```bash
