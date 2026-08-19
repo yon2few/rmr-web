@@ -116,6 +116,16 @@ async function expandShareShortlink(url) {
   }
 }
 
+async function fetchFromOAuthService(url, sort) {
+  const api =
+    `${SHARE_EXPAND_URL.replace(/\/+$/, '')}/thread` +
+    `?url=${encodeURIComponent(url)}&sort=${encodeURIComponent(sort)}`;
+  const res = await fetch(api, { headers: { Accept: 'application/json' } });
+  const body = await res.json().catch(() => null);
+  if (res.ok && hasPostListing(body)) return body;
+  throw new Error(body?.error || `OAuth thread failed (HTTP ${res.status}).`);
+}
+
 function toJsonUrl(threadUrl, sort, host) {
   const u = new URL(threadUrl);
   if (host) u.hostname = host;
@@ -263,6 +273,16 @@ exports.handler = async (event) => {
     };
   }
 
+  const failures = [];
+  try {
+    const fromOauth = await fetchFromOAuthService(rawUrl, sort);
+    if (fromOauth) {
+      return { statusCode: 200, headers, body: JSON.stringify(fromOauth) };
+    }
+  } catch (oauthError) {
+    failures.push(oauthError.message || 'oauth thread failed');
+  }
+
   let threadUrl;
   try {
     threadUrl = isSharePath(rawUrl)
@@ -284,7 +304,6 @@ exports.handler = async (event) => {
       })
     };
   }
-  const failures = [];
   try {
     const fromReddit = await fetchFromReddit(threadUrl, sort);
     if (fromReddit) {

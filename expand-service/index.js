@@ -26,9 +26,29 @@ function commentsUrlFromText(text) {
   return `https://www.reddit.com/comments/${id}`;
 }
 
+function isReddItHost(hostname) {
+  return /(^|\.)redd\.it$/i.test(hostname || '');
+}
+
+function toRedditSortParam(sort) {
+  return sort === 'best' ? 'confidence' : sort;
+}
+
+function hasPostListing(json) {
+  return Boolean(json?.[0]?.data?.children?.[0]?.data?.id);
+}
+
 function normalizeTargetUrl(raw) {
   const parsed = parseRedditInput(raw);
-  if (!parsed || !/(^|\.)reddit\.com$/i.test(parsed.hostname)) {
+  if (!parsed) {
+    throw new Error('Pass a reddit.com share URL as ?url=');
+  }
+  if (isReddItHost(parsed.hostname)) {
+    const id = parsed.pathname.replace(/\//g, '');
+    if (!id) throw new Error('Pass a redd.it post link as ?url=');
+    return `https://www.reddit.com/comments/${id}`;
+  }
+  if (!/(^|\.)reddit\.com$/i.test(parsed.hostname)) {
     throw new Error('Pass a reddit.com share URL as ?url=');
   }
   if (/^(old|sh|new|oauth)\.reddit\.com$/i.test(parsed.hostname) || parsed.hostname === 'reddit.com') {
@@ -128,11 +148,61 @@ async function expand(rawUrl) {
   return expandWithOAuth(target);
 }
 
+function toOauthListingUrl(commentsUrl, sort) {
+  const parsed = new URL(commentsUrl);
+  const path = parsed.pathname.replace(/\/+$/, '');
+  const listing = new URL(`https://oauth.reddit.com${path}.json`);
+  listing.searchParams.set('sort', toRedditSortParam(sort));
+  listing.searchParams.set('raw_json', '1');
+  return listing.toString();
+}
+
+async function fetchThreadListing(rawUrl, sort) {
+  const { commentsUrl } = await expand(rawUrl);
+  const token = await redditAppToken();
+  const target = toOauthListingUrl(commentsUrl, sort);
+  const res = await fetch(target, {
+    method: 'GET',
+    redirect: 'follow',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+      'User-Agent': REDDIT_UA
+    }
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !hasPostListing(json)) {
+    const detail = json?.message || json?.error || '';
+    throw new Error(
+      `OAuth thread listing failed (HTTP ${res.status}${detail ? `: ${detail}` : ''}).`
+    );
+  }
+  return json;
+}
+
 const server = http.createServer(async (req, res) => {
   const incoming = new URL(req.url, 'http://localhost');
   if (incoming.pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+  if (incoming.pathname === '/thread') {
+    const target = (incoming.searchParams.get('url') || '').trim();
+    const sort = (incoming.searchParams.get('sort') || 'best').trim() || 'best';
+    if (!target) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Pass ?url=' }));
+      return;
+    }
+    try {
+      const listing = await fetchThreadListing(target, sort);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(listing));
+    } catch (error) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message || 'thread failed' }));
+    }
     return;
   }
   if (incoming.pathname !== '/expand') {

@@ -109,6 +109,18 @@ def expand_via_oauth_service(url: str) -> str:
     raise RuntimeError(f"OAuth expand failed ({detail}).")
 
 
+def fetch_oauth_thread(url: str, sort: str):
+    api = (
+        f"{SHARE_EXPAND_URL}/thread?url={quote(url, safe='')}"
+        f"&sort={quote(sort, safe='')}"
+    )
+    status, payload = fetch_json(api)
+    if status == 200 and has_post(payload):
+        return payload
+    detail = (payload or {}).get("error") if isinstance(payload, dict) else None
+    raise RuntimeError(detail or f"OAuth thread failed (HTTP {status}).")
+
+
 def expand_via_reddit_redirect(url: str) -> str:
     parsed = parse_input(url)
     share_path = parsed.path if parsed else ""
@@ -291,9 +303,12 @@ class Handler(SimpleHTTPRequestHandler):
                 "error": "Could not expand that Reddit share link. Open it once and paste the /comments/ URL from the address bar."
             })
         try:
-            payload = fetch_reddit(thread, sort) or fetch_pullpush(thread, sort) or fetch_arctic(thread)
-        except Exception as err:
-            return self.json(502, {"error": str(err)})
+            payload = fetch_oauth_thread(raw, sort)
+        except Exception:
+            try:
+                payload = fetch_reddit(thread, sort) or fetch_pullpush(thread, sort) or fetch_arctic(thread)
+            except Exception as err:
+                return self.json(502, {"error": str(err)})
         if not payload:
             return self.json(502, {"error": "Could not load that Reddit thread."})
         return self.json(200, payload)

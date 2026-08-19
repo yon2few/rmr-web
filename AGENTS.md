@@ -44,9 +44,11 @@ the Netlify function. Local: `python3 dev-server.py`.
 App Share → Copy link is `/r/{sub}/s/{token}`, not a post id. Resolve
 it with authenticated Reddit OAuth on Cloud Run `rmr-share-expand`
 (`POST /api/v1/access_token` then `GET oauth.reddit.com` with
-`redirect: manual`). Unauthenticated fetches from Netlify / Cloud Run /
-Microlink / Jina get 403 with no `Location`. Do not send an unresolved
-`/s/` URL into Arctic/Pullpush. Create the Reddit script app at
+`redirect: manual`). Thread JSON is the same token:
+`GET /thread?url=&sort=` → `oauth.reddit.com{comments}.json`.
+Unauthenticated fetches from Netlify / Cloud Run / Microlink / Jina get
+403 with no `Location`. Do not send an unresolved `/s/` URL into
+Arctic/Pullpush. Create the Reddit script app at
 `https://www.reddit.com/prefs/apps`. First expander deploy:
 `REDDIT_CLIENT_ID=… REDDIT_CLIENT_SECRET=… ./deploy-rmr-share-expand-cloudrun.sh`.
 
