@@ -26,6 +26,11 @@ Empty Paste overlay shipped. Still parked:
 
 - Loaded layout: title chrome → sliders (stay with the tree) → visualizer →
   sort + Post Only → timer + Read Me Reddit hero.
+- Fit the phone screen (viewport meta, 100dvh, no below-the-fold).
+- iOS audio `playsInline` on the host audio element.
+- ArT Reader `/reader` paste: prefetch `/rmr/api/thread`, stash listing,
+  hop to `/rmr`. Text stays on Priority (no transform). Trash can must
+  not leave Let Me Listen selected.
 
 Out of scope: RMR Desktop Chrome Extension, engine copy, expanding `more`
 objects.
