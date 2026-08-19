@@ -192,9 +192,7 @@
     .panel.is-off-reddit .input-body,
     .panel.is-off-reddit .footer-row,
     .panel.is-login-required .input-body,
-    .panel.is-login-required .footer-row,
-    .panel.is-need-thread .input-body,
-    .panel.is-need-thread .footer-row {
+    .panel.is-login-required .footer-row {
       pointer-events: none;
       user-select: none;
       opacity: 0.45;
@@ -204,10 +202,16 @@
     .need-thread-gate { display: none; flex-direction: column; gap: 10px; }
     .panel.is-off-reddit .off-reddit-gate { display: flex; }
     .panel.is-login-required .login-required-gate { display: flex; }
-    .panel.is-need-thread .need-thread-gate { display: flex; }
+    .panel.is-need-thread .need-thread-gate.has-error { display: flex; }
     .panel.is-off-reddit #threadMeta,
     .panel.is-login-required #threadMeta,
-    .panel.is-need-thread #threadMeta { display: none; }
+    .panel.is-need-thread #threadMeta,
+    .panel.is-need-thread .thread-url-label,
+    .panel.is-need-thread:not(.is-paste-fallback) .thread-url-input,
+    .panel.is-need-thread #screen-input,
+    .panel.is-need-thread .reset-btn { display: none !important; }
+    .panel:not(.is-need-thread) #pasteDock { display: none !important; }
+    .panel:not(.is-need-thread) .rmr-input-brand { display: none; }
     .off-reddit-gate p,
     .login-required-gate p,
     .need-thread-gate p {
@@ -434,8 +438,31 @@
     #maxReplyChildren.h-slider::-webkit-slider-thumb { background: var(--tier-nested); }
     #maxReplyChildren.h-slider::-moz-range-thumb { background: var(--tier-nested); }
 
-    .footer-row { display: flex; align-items: center; gap: 10px; padding: 2px; font-size: 12px; }
+    .footer-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px; font-size: 12px; }
     .footer-row .muted { display: flex; align-items: center; gap: 6px; }
+
+    .rmr-input-brand {
+      font-size: var(--overlay-title-font-size, 13px);
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      color: var(--overlay-title-text-color);
+      margin: 0 0 12px;
+    }
+    #pasteDock {
+      flex: 0 0 auto;
+      margin-top: auto;
+      padding-top: 14px;
+    }
+    #pasteThreadBtn {
+      width: 100%;
+      min-height: clamp(128px, 22dvh, 192px);
+      font-size: 18px;
+    }
+    #pasteThreadBtn .btn-label {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
 
     .input-overlay {
       flex: 1;
@@ -606,6 +633,7 @@
 
   <div class="panel" id="panel">
     <div class="card input-overlay" id="input-overlay">
+      <div class="rmr-input-brand" id="rmrInputBrand">Read Me Reddit</div>
       <div class="input-top thread-context">
         <label class="thread-url-label" for="threadUrlInput">Reddit thread</label>
         <input type="url" class="thread-url-input" id="threadUrlInput" placeholder="Paste a reddit.com or redd.it link" autocomplete="off" spellcheck="false">
@@ -614,7 +642,7 @@
           <div class="thread-title truncate" id="postTitle">Paste a thread to begin</div>
         </div>
         <div class="need-thread-gate" id="needThreadGate" aria-live="polite">
-          <p>Paste a Reddit thread URL to use Read Me Reddit.</p>
+          <p id="pasteStatus"></p>
         </div>
       </div>
 
@@ -687,15 +715,18 @@
           </button>
         </div>
       </div>
+
+      <div id="pasteDock">
+        <button type="button" id="pasteThreadBtn" class="generate-btn overlay-primary-action generate-state">
+          <span class="btn-label">Paste &amp; Get Thread</span>
+        </button>
+      </div>
     </div>
 
     <div id="returns-overlay-host"></div>
 
     <div class="footer-row">
-      <span class="muted">
-        <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="9" r="1" fill="currentColor"/><circle cx="13" cy="9" r="1" fill="currentColor"/></svg>
-        Reddit thread
-      </span>
+      <span class="muted">Software by ArT Reader</span>
       <button type="button" id="rmrInputResetBtn" class="reset-btn" title="Clear results and read a new page">
         <svg width="12" height="12" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16 4v5h-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 10a6 6 0 0 1 10.5-4M4 10a6 6 0 0 0 10.5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         Reset

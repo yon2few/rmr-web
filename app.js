@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ui = {
     panel: document.getElementById('panel'),
     needThreadGate: document.getElementById('needThreadGate'),
+    pasteStatus: document.getElementById('pasteStatus'),
+    pasteThreadBtn: document.getElementById('pasteThreadBtn'),
     threadUrlInput: document.getElementById('threadUrlInput'),
     subreddit: document.getElementById('subredditLabel'),
     title: document.getElementById('postTitle'),
@@ -228,6 +230,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderReplyTree();
   }
 
+  function setPasteError(message) {
+    if (ui.pasteStatus) ui.pasteStatus.textContent = message || '';
+    ui.needThreadGate?.classList.toggle('has-error', Boolean(message));
+  }
+
   function setNeedThreadGate(active) {
     ui.panel.classList.toggle('is-need-thread', active);
     if (active) {
@@ -239,6 +246,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       ui.title.classList.add('truncate');
       ui.subreddit.textContent = 'r/...';
       ui.title.textContent = 'Paste a thread to begin';
+    } else {
+      ui.panel.classList.remove('is-paste-fallback');
+      setPasteError('');
     }
   }
 
@@ -246,24 +256,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     lastThreadJson = null;
     currentProcessedData = null;
     clearDashboardMetrics();
+    ui.panel.classList.add('is-need-thread');
+    if (ui.pasteThreadBtn) {
+      ui.pasteThreadBtn.disabled = false;
+      const label = ui.pasteThreadBtn.querySelector('.btn-label');
+      if (label) label.textContent = 'Paste & Get Thread';
+    }
     if (error.status === 429) {
       const waitMs = fetchBackoffMs;
       fetchBackoffUntil = Date.now() + waitMs;
       fetchBackoffMs = Math.min(fetchBackoffMs * 2, 120000);
       const waitSec = Math.ceil(waitMs / 1000);
-      ui.subreddit.textContent = 'Reddit rate-limited this fetch';
-      ui.title.textContent = `Too many requests. Retrying in ${waitSec}s.`;
+      setPasteError(`Too many requests. Retrying in ${waitSec}s.`);
       setTimeout(() => {
         if (!currentTabUrl || lastThreadJson || Date.now() < fetchBackoffUntil) return;
         performFetch();
       }, waitMs + 50);
     } else {
       const statusPart = error.status != null ? ` (HTTP ${error.status})` : '';
-      ui.subreddit.textContent = 'Thread load failed';
-      ui.title.textContent = `${error.message || 'Could not load this thread'}${statusPart}`;
+      setPasteError(`${error.message || 'Could not load this thread'}${statusPart}`);
     }
-    ui.title.classList.add('is-error');
-    ui.title.classList.remove('truncate');
   }
 
   function readThreadUrlFromUi() {
@@ -327,15 +339,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
       if (!isRedditThreadUrl(rawUrl)) {
-        setNeedThreadGate(false);
-        ui.subreddit.textContent = 'Not a thread URL';
-        ui.title.textContent = 'Use a reddit.com, redd.it, or share /s/ link.';
-        ui.title.classList.add('is-error');
-        ui.title.classList.remove('truncate');
+        setNeedThreadGate(true);
+        setPasteError('Use a reddit.com, redd.it, or share /s/ link.');
         return;
       }
 
-      setNeedThreadGate(false);
       const cleanUrl = normalizeRedditThreadUrl(rawUrl);
       const urlChanged = cleanUrl !== currentTabUrl;
       if (urlChanged) {
@@ -345,8 +353,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         fetchBackoffUntil = 0;
         fetchBackoffMs = 15000;
       }
-      if (lastThreadJson) return;
+      if (lastThreadJson) {
+        setNeedThreadGate(false);
+        return;
+      }
       if (Date.now() < fetchBackoffUntil) return;
+      ui.panel.classList.add('is-need-thread');
+      if (ui.pasteThreadBtn) {
+        ui.pasteThreadBtn.disabled = true;
+        const label = ui.pasteThreadBtn.querySelector('.btn-label');
+        if (label) label.textContent = 'Getting thread…';
+      }
       performFetch();
     } catch (e) {
       console.error('Init error:', e);
@@ -554,6 +571,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  async function pasteAndGetThread() {
+    setPasteError('');
+    let raw = '';
+    try {
+      raw = (await navigator.clipboard.readText()).trim();
+    } catch {
+      ui.panel.classList.add('is-paste-fallback');
+      setPasteError('Clipboard is blocked. Paste the thread URL below.');
+      ui.threadUrlInput?.focus();
+      return;
+    }
+    if (!raw) {
+      setPasteError('Clipboard is empty. Copy a Reddit thread link, then try again.');
+      return;
+    }
+    if (!isRedditThreadUrl(raw)) {
+      setPasteError('Use a reddit.com, redd.it, or share /s/ link.');
+      return;
+    }
+    if (ui.pasteThreadBtn) {
+      ui.pasteThreadBtn.disabled = true;
+      const label = ui.pasteThreadBtn.querySelector('.btn-label');
+      if (label) label.textContent = 'Getting thread…';
+    }
+    if (ui.threadUrlInput) ui.threadUrlInput.value = raw;
+    commitThreadUrlFromInput();
+  }
+
+  ui.pasteThreadBtn?.addEventListener('click', () => {
+    pasteAndGetThread();
+  });
+
   ui.postOnlyToggle.addEventListener('change', () => {
     updatePostOnlyGating();
   });
@@ -571,6 +620,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       fetchBackoffUntil = 0;
       fetchBackoffMs = 15000;
       applyFiltersFromCache();
+      setNeedThreadGate(false);
+      if (ui.pasteThreadBtn) {
+        ui.pasteThreadBtn.disabled = false;
+        const label = ui.pasteThreadBtn.querySelector('.btn-label');
+        if (label) label.textContent = 'Paste & Get Thread';
+      }
 
       if (!hasAutoFocusedInputSliders && ui.screenInput.style.display !== 'none') {
         hasAutoFocusedInputSliders = true;

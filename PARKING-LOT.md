@@ -22,10 +22,8 @@ Return Reddit’s listing as-is. Do not flatten. Do not walk `more` children
 (desktop does not). Pullpush / Arctic last-resort only. Do not send an
 unresolved `/s/` URL into archives. Do not put Reddit secrets on Netlify.
 
-Then:
+Empty Paste overlay shipped. Still parked:
 
-- Empty state: large **Paste** hero (ArT Reader mobile language). Clipboard
-  URL → fetch JSON → full RMR interface. Reset returns to Paste.
 - Loaded layout: title chrome → sliders (stay with the tree) → visualizer →
   sort + Post Only → timer + Read Me Reddit hero.
 
