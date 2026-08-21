@@ -3,7 +3,7 @@
 This web consumer mirrors a committed allowlist from
 `yon2few/rmr-extension-engine-shared`. Do not edit mirrored files here.
 
-- Shared RMR commit: `715d84981e39b6efaca7909f1cb145b4eb82f660`
+- Shared RMR commit: `12484264b4875c3ffe0e87f98e9b40a9bac39c0e`
 - Upstream engine commit: `01e82597cdfdfa9a2177d1be8190fd1a31a6d76e`
 - Source bundle: `extension_art-reddit-json/`
 
