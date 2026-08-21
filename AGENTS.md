@@ -40,9 +40,9 @@ upstream engine commits. Never edit mirrored files in this consumer.
 
 `platform-adapter.js` is the web-only composition root. It owns paste,
 clipboard, URL history, `/api/thread`, proxy errors, and the web transform
-configuration. Production generation streams through the same-origin
-`/rmr/api/generate/run` edge proxy because Cloud Run does not grant the web
-origin CORS access; the Cloud Run API itself is unchanged. MP3 export is
+configuration. Production generation streams directly from
+`read-me-reddit-transform-service`; that service explicitly grants the two
+production web origins and strict Chrome-extension origins. MP3 export is
 disabled by contract. The Netlify functions,
 OAuth/share expansion service, local proxy, and deploy scripts remain
 consumer-owned.
