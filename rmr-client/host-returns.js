@@ -573,6 +573,7 @@ function createHostPlayer({ enableMp3Export } = {}) {
             streamTotalChunks = null;
             playbackUnlocked = false;
             allChunksReady = false;
+            player.isGenerating = false;
             if (enableMp3Export) player.localAudio.reset();
             player.pages = [];
             player.renderedChunkIndex = null;

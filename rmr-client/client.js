@@ -19,6 +19,7 @@ window.RmrClient = Object.freeze({
     sortRadios: document.querySelectorAll('input[name="sort"]'),
     postOnlyToggle: document.getElementById('postOnlyToggle'),
     generateAudioBtn: document.getElementById('generateAudioBtn'),
+    generationError: document.getElementById('generationError'),
     resetBtn: document.getElementById('rmrInputResetBtn'),
     screenInput: document.getElementById('screen-input'),
     commentLimit: document.getElementById('commentLimit'),
@@ -235,6 +236,8 @@ window.RmrClient = Object.freeze({
     clearThreadState();
     ui.title.classList.remove('is-error');
     ui.title.classList.add('truncate');
+    ui.generationError.textContent = '';
+    ui.generationError.hidden = true;
     await adapter.resetContext();
     await init();
   }
@@ -471,12 +474,16 @@ window.RmrClient = Object.freeze({
     generateAbort = new AbortController();
     const signal = generateAbort.signal;
     try {
+      ui.generationError.textContent = '';
+      ui.generationError.hidden = true;
       ui.generateAudioBtn.disabled = true;
       await postGenerateToEngine(payload, signal);
     } catch (err) {
       if (err?.name === 'AbortError') return;
       console.error('Generation failed:', err);
-      alert(`Audio generation failed: ${err.message}`);
+      await hostReturns.resetReturns();
+      ui.generationError.textContent = `Audio generation failed: ${err.message || err}`;
+      ui.generationError.hidden = false;
     } finally {
       if (generateAbort && generateAbort.signal === signal) generateAbort = null;
       ui.generateAudioBtn.disabled = false;
