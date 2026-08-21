@@ -1,0 +1,49 @@
+[
+  {
+    "kind": "Listing",
+    "data": {
+      "children": [
+        {
+          "kind": "t3",
+          "data": {
+            "id": "abc123",
+            "subreddit_name_prefixed": "r/testing",
+            "author": "op_user",
+            "title": "ART-070 shared client fixture",
+            "selftext": "A deterministic fixture for browser smoke tests.",
+            "permalink": "/r/testing/comments/abc123/shared_client_fixture/"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "kind": "Listing",
+    "data": {
+      "children": [
+        {
+          "kind": "t1",
+          "data": {
+            "author": "human_one",
+            "body": "The shared client owns this narratable comment.",
+            "replies": {
+              "kind": "Listing",
+              "data": {
+                "children": [
+                  {
+                    "kind": "t1",
+                    "data": {
+                      "author": "reply_one",
+                      "body": "This reply exercises the shared depth limit.",
+                      "replies": ""
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+]

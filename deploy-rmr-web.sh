@@ -43,7 +43,9 @@ mkdir -p "${RMR_BUILD_DIR}"
 rsync -a \
   --exclude '.git' \
   --exclude 'deploy-rmr-web.sh' \
-  --exclude 'refresh-engine-copy.sh' \
+  --exclude 'refresh-rmr-client-copy.sh' \
+  --exclude 'RMR_SYNC.md' \
+  --exclude 'test-fixtures' \
   --exclude 'dev-server.py' \
   --exclude 'AGENTS.md' \
   --exclude 'netlify' \
@@ -59,8 +61,9 @@ cp "${SCRIPT_DIR}/netlify/edge-functions/rmr-expand.js" \
   "${PROD_ROOT}/netlify/edge-functions/rmr-expand.js"
 
 require_file "${RMR_BUILD_DIR}/index.html"
-require_file "${RMR_BUILD_DIR}/app.js"
-require_file "${RMR_BUILD_DIR}/host-returns.js"
+require_file "${RMR_BUILD_DIR}/platform-adapter.js"
+require_file "${RMR_BUILD_DIR}/rmr-client/client.js"
+require_file "${RMR_BUILD_DIR}/rmr-client/host-returns.js"
 require_file "${RMR_BUILD_DIR}/engine/overlay/markup.js"
 require_file "${BUILD_DIR}/netlify/functions/rmr-thread-json.js"
 cp "${SITE_NETLIFY_TOML}" "${BUILD_DIR}/netlify.toml"

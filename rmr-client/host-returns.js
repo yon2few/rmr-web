@@ -1,4 +1,4 @@
-// Shared-engine host for returns. Do not load engine/index.js.
+// Shared RMR returns host. Do not load engine/index.js.
 // Slideshow URLs from AGENT_brand-spec-for-build.md.
 
 const BRAND_SLIDESHOW_URLS = [
@@ -43,7 +43,10 @@ const BRAND_SLIDESHOW_URLS = [
     };
 }());
 
-function createHostPlayer() {
+function createHostPlayer({ enableMp3Export } = {}) {
+    if (typeof enableMp3Export !== 'boolean') {
+        throw new Error('[HostReturns] createHostPlayer requires a boolean enableMp3Export option.');
+    }
     if (!window.ArtReaderReturnsOverlay || typeof window.ArtReaderReturnsOverlay.mount !== 'function') {
         throw new Error('[HostReturns] engine/overlay/markup.js did not load.');
     }
@@ -101,6 +104,8 @@ function createHostPlayer() {
     let playbackUnlocked = false;
     let playbackSpeedValue = 0.95;
     let onReset = null;
+    let requestTitle = '';
+    let allChunksReady = false;
 
     function showHostScreen(name) {
         const overlayOpen = name === 'loading' || name === 'fullchunk' || name === 'pageview';
@@ -115,6 +120,7 @@ function createHostPlayer() {
     function setThreadChrome({ subreddit, title } = {}) {
         const sub = typeof subreddit === 'string' ? subreddit.trim() : '';
         const nextTitle = typeof title === 'string' ? title.trim() : '';
+        requestTitle = nextTitle;
         if (overlayTitleStatic) {
             overlayTitleStatic.textContent = sub || 'ArT Reader';
         }
@@ -234,8 +240,44 @@ function createHostPlayer() {
             }
             return Array.isArray(audioChunks) && audioChunks.some(Boolean);
         },
-        computeHasSavableState() { return false; },
-        computeHasCompleteLocalSession() { return false; },
+        computeHasSavableState() {
+            return enableMp3Export && this.computeHasCompleteLocalSession();
+        },
+        getRequestTitle() { return requestTitle; },
+        requireEffectiveRequestTitle() {
+            const title = requestTitle.trim();
+            if (!title) {
+                throw new Error('A title could not be derived because the input text is empty.');
+            }
+            return title;
+        },
+        buildFileBaseName() {
+            const title = this.requireEffectiveRequestTitle();
+            const sanitizedTitle = title
+                .replace(/[\/\\?%*:|"<>]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (!sanitizedTitle) {
+                throw new Error('Title does not contain any valid filename characters.');
+            }
+            return sanitizedTitle;
+        },
+        setAllChunksReady(isReady) {
+            allChunksReady = isReady === true;
+        },
+        markSubmissionReady() {
+            this.setAllChunksReady(true);
+            if (typeof this.syncOverlayActionState === 'function') {
+                this.syncOverlayActionState({ isGenerating: false });
+            }
+        },
+        computeHasCompleteLocalSession() {
+            return enableMp3Export &&
+                allChunksReady === true &&
+                this.computeHasAudio() &&
+                this.localAudio &&
+                this.localAudio.hasCompleteLocalAudio();
+        },
         computeCanReset() { return true; },
         resolveCurrentPageNavIndex() {
             const pages = this.pages;
@@ -308,6 +350,22 @@ function createHostPlayer() {
         input: {}
     };
 
+    player.localAudio = null;
+    player.mp3Export = null;
+    if (enableMp3Export) {
+        if (typeof LocalAudioArtifactStore !== 'function') {
+            throw new Error('[HostReturns] MP3 export requires local-audio-artifact-store.js.');
+        }
+        if (typeof Mp3ExportService !== 'function') {
+            throw new Error('[HostReturns] MP3 export requires mp3-export-service.js.');
+        }
+        if (!window.lamejs || typeof window.lamejs.Mp3Encoder !== 'function') {
+            throw new Error('[HostReturns] MP3 export requires vendor/lame.min.js.');
+        }
+        player.localAudio = new LocalAudioArtifactStore(player);
+        player.mp3Export = new Mp3ExportService(player);
+    }
+
     if (!window.ArtReaderPageTimes || !window.ArtReaderReadableTextSize) {
         throw new Error('[HostReturns] page-times.js and readable-text-size.js are required.');
     }
@@ -341,14 +399,14 @@ function createHostPlayer() {
             getIsGenerating: () => player.isGenerating,
             getHasAudio: () => player.computeHasAudio(),
             getCanSave: () => false,
-            getCanExport: () => false,
+            getCanExport: () => enableMp3Export && player.computeHasCompleteLocalSession(),
             getCanShare: () => false,
             getCanReset: () => true,
             getOverlayActionVisibility: (mode) => {
                 const visibility = window.ArtReaderReturnsOverlayActions.getActionVisibility(mode);
                 visibility.loadBtn = false;
                 visibility.saveBtn = false;
-                visibility.exportBtn = false;
+                visibility.exportBtn = enableMp3Export && (mode === 'fullchunk' || mode === 'pageview');
                 visibility.resetBtn = true;
                 visibility.generateBtn = true;
                 visibility.prevPageBtn = mode === 'fullchunk' || mode === 'pageview';
@@ -375,7 +433,7 @@ function createHostPlayer() {
                 return {
                     loadBtn: true,
                     saveBtn: true,
-                    exportBtn: true,
+                    exportBtn: !state.canExport || !!state.isGenerating,
                     prevPageBtn: prevDisabled,
                     nextPageBtn: nextDisabled,
                     resetBtn: !!state.isGenerating
@@ -461,6 +519,19 @@ function createHostPlayer() {
             player.controls.triggerPageNav(1);
         });
     }
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            if (!enableMp3Export) {
+                throw new Error('[HostReturns] MP3 export is disabled for this platform.');
+            }
+            if (!player.computeHasCompleteLocalSession()) return;
+            if (!player.mp3Export || typeof player.mp3Export.exportMP3 !== 'function') {
+                throw new Error('[HostReturns] MP3 export service is unavailable; #exportBtn cannot be handled.');
+            }
+            void player.mp3Export.exportMP3()
+                .catch((error) => player.captureSubsystemFailure('export', error));
+        });
+    }
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             if (player.isGenerating) return;
@@ -501,6 +572,8 @@ function createHostPlayer() {
             streamJobStartedFlag = false;
             streamTotalChunks = null;
             playbackUnlocked = false;
+            allChunksReady = false;
+            if (enableMp3Export) player.localAudio.reset();
             player.pages = [];
             player.renderedChunkIndex = null;
             player.renderedPageIndex = null;
@@ -527,21 +600,15 @@ function createHostPlayer() {
             streamTotalChunks = null;
             streamJobStartedFlag = false;
             playbackUnlocked = false;
+            allChunksReady = false;
+            if (enableMp3Export) player.localAudio.reset();
             currentChunkIndex = 0;
             currentPageIndex = 0;
             player.isGenerating = true;
             player.loading.showLoadingInterface();
             player.syncOverlayActionState({ mode: 'loading', isGenerating: true, isPlaying: false });
 
-            let stream;
-            try {
-                stream = await transport.postJsonStream({ endpoint, payload });
-            } catch (err) {
-                if (err?.name === 'AbortError') throw err;
-                if (!(err instanceof TypeError)) throw err;
-                await new Promise((resolve) => setTimeout(resolve, 2000));
-                stream = await transport.postJsonStream({ endpoint, payload });
-            }
+            const stream = await transport.postJsonStream({ endpoint, payload });
 
             if (!stream || typeof stream.getReader !== 'function') {
                 throw new Error('Transform service did not return a readable stream.');
@@ -560,6 +627,9 @@ function createHostPlayer() {
                     const prepared = dataCore.preparePagesData(event.chunk.pages || []);
                     const chunk = { ...event.chunk, pages: prepared, audioUrl: event.chunk.moduleAudioUrl || event.chunk.audioUrl };
                     audioChunks[event.chunkIndex] = chunk;
+                    if (enableMp3Export) {
+                        await player.localAudio.materializeChunkAudio(event.chunkIndex, chunk);
+                    }
                     if (event.chunkIndex > 0) {
                         chunkLoadCoordinator.markChunkDelivered(event.chunkIndex);
                     }
@@ -574,6 +644,9 @@ function createHostPlayer() {
                     player.loading.handleSubmissionComplete({ totalChunks: n });
                     player.isGenerating = false;
                     await maybeUnlockFirstChunks();
+                    if (!enableMp3Export || player.localAudio.hasCompleteLocalAudio()) {
+                        player.markSubmissionReady();
+                    }
                     if (player.activeView !== 'input') {
                         player.syncOverlayActionState({
                             mode: player.activeView,

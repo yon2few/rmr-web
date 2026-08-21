@@ -1,7 +1,7 @@
 # rmr web — Agent Refresher
 
 Local folder: `rmr web`. Created 2026-08-18 as the public web port of
-`RMR Extension (scratch)`. Folder name is local only.
+the RMR extension. Folder name is local only.
 
 **Input is ours.** Paste a Reddit thread URL, filter, estimate, Generate POST.
 **Returns are the shared engine** (`ArT Reader - Engine (shared)/engine/`).
@@ -30,10 +30,19 @@ GCP project: **`artreader`**.
 requires homepage + `/reader` already present so a publish does not
 drop sibling routes.
 
-## Engine copy
+## Shared client copy
 
-`engine/` is a verbatim copy. Refresh with `./refresh-engine-copy.sh`.
-Do not edit the copy. Host glue is `host-returns.js` + `host-cloudrun.js`.
+`index.html`, `rmr-client/`, `engine/`, and `icons/` are verbatim mirrors from
+`RMR Extension Engine (shared)`. Refresh all of them together with
+`./refresh-rmr-client-copy.sh`; validate drift with
+`./refresh-rmr-client-copy.sh --check`. See `RMR_SYNC.md` for the producer and
+upstream engine commits. Never edit mirrored files in this consumer.
+
+`platform-adapter.js` is the web-only composition root. It owns paste,
+clipboard, URL history, `/api/thread`, proxy errors, and the web transform
+configuration. MP3 export is disabled by contract. The Netlify functions,
+OAuth/share expansion service, local proxy, and deploy scripts remain
+consumer-owned.
 
 ## Reddit JSON
 
@@ -58,4 +67,6 @@ Arctic/Pullpush. Create the Reddit script app at
 cd "/Users/yonyonson/Developer/ArT Reader/rmr web"
 python3 dev-server.py
 # http://127.0.0.1:8777/?redditUrl=<url-encoded Reddit thread>
+# Deterministic mirrored fixture:
+# http://127.0.0.1:8777/?redditUrl=https%3A%2F%2Fwww.reddit.com%2Fr%2Ftesting%2Fcomments%2Fabc123%2Ffixture&listingUrl=http%3A%2F%2F127.0.0.1%3A8777%2Ftest-fixtures%2Fthread-listing.json
 ```

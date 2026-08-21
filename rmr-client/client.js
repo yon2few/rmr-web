@@ -1,10 +1,18 @@
-document.addEventListener('DOMContentLoaded', async () => {
+window.RmrClient = Object.freeze({
+  async mount({ adapter } = {}) {
+  const contract = window.RmrAdapterContract;
+  if (!contract || typeof contract.validateAdapter !== 'function') {
+    throw new Error('[RmrClient] rmr-client/adapter-contract.js did not load.');
+  }
+  contract.validateAdapter(adapter);
+  const domain = window.RmrRedditDomain;
+  if (!domain || typeof domain.processListing !== 'function') {
+    throw new Error('[RmrClient] rmr-client/domain.js did not load.');
+  }
+  document.documentElement.dataset.rmrPlatform = adapter.id;
+
   const ui = {
     panel: document.getElementById('panel'),
-    needThreadGate: document.getElementById('needThreadGate'),
-    pasteStatus: document.getElementById('pasteStatus'),
-    pasteThreadBtn: document.getElementById('pasteThreadBtn'),
-    threadUrlInput: document.getElementById('threadUrlInput'),
     subreddit: document.getElementById('subredditLabel'),
     title: document.getElementById('postTitle'),
     time: document.getElementById('estTime'),
@@ -32,48 +40,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentProcessedData = null;
   let hasAutoFocusedInputSliders = false;
   let generateAbort = null;
+  let fetchAbort = null;
   let fetchSeq = 0;
   let fetchBackoffUntil = 0;
   let fetchBackoffMs = 15000;
-  const hostReturns = window.ArtReaderHostReturns.createHostPlayer();
-
-  const DEFAULT_TRANSFORM_URL =
-    'https://read-me-reddit-transform-service-375541022505.us-central1.run.app';
-  const LOCAL_TRANSFORM_URL = 'http://127.0.0.1:8787';
-  // Engine AudioSystem.CHUNK_SIZE_CHARS_PER_SECOND — 420 chars = 30s.
-  const CHARS_PER_SECOND = 14;
-
-  function pageQueryParams() {
-    return new URLSearchParams(window.location.search);
-  }
+  const hostReturns = window.ArtReaderHostReturns.createHostPlayer({
+    enableMp3Export: adapter.enableMp3Export
+  });
 
   async function resolveTransformBaseUrl() {
-    const params = pageQueryParams();
-    const fromQuery = (params.get('adkProxy') || '').trim().replace(/\/$/, '');
-    if (fromQuery) return fromQuery;
-    const backend = (params.get('generateBackend') || '').trim().toLowerCase();
-    if (backend === 'local') return LOCAL_TRANSFORM_URL;
-    return DEFAULT_TRANSFORM_URL;
+    const baseUrl = await adapter.resolveTransformBaseUrl();
+    if (typeof baseUrl !== 'string' || !baseUrl.trim()) {
+      throw new Error('[RmrClient] Adapter returned an invalid transform base URL.');
+    }
+    return baseUrl.trim().replace(/\/$/, '');
   }
 
   function buildGeneratePayload() {
     if (!currentProcessedData?.flatData) return null;
-    const title =
-      currentProcessedData.postTitle ||
-      currentProcessedData.flatData.title ||
-      ui.title?.textContent?.trim() ||
-      '';
-    const subreddit =
-      currentProcessedData.subreddit ||
-      currentProcessedData.flatData.subreddit ||
-      ui.subreddit?.textContent?.trim() ||
-      '';
-    return {
-      title: title.trim(),
-      subreddit: subreddit.trim(),
-      flatData: currentProcessedData.flatData,
-      userId: 'read-me-reddit-web'
-    };
+    return domain.buildGeneratePayload({
+      processedData: currentProcessedData,
+      userId: adapter.userId,
+      titleFallback: ui.title.textContent,
+      subredditFallback: ui.subreddit.textContent
+    });
   }
 
   async function postGenerateToEngine(payload, signal) {
@@ -87,11 +77,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     await hostReturns.runGenerate({ endpoint, payload, signal });
   }
 
-  function threadApiUrl(threadUrl, sort) {
-    const api = new URL('api/thread', window.location.href);
-    api.searchParams.set('url', threadUrl);
-    api.searchParams.set('sort', sort);
-    return api.toString();
+  const unsubscribeContextChanges = adapter.subscribeContextChanges(() => {
+    setTimeout(() => init(), 200);
+  });
+  if (typeof unsubscribeContextChanges !== 'function') {
+    throw new Error('[RmrClient] subscribeContextChanges() must return an unsubscribe function.');
   }
 
   function getSelectedSort() {
@@ -135,80 +125,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     rangeEl.style.background = `linear-gradient(to right, ${fillColor} ${percent}%, var(--tier-track-background) ${percent}%)`;
   }
 
-  function parseRedditInput(raw) {
-    const trimmed = String(raw || '').trim();
-    if (!trimmed) return null;
-    try {
-      return new URL(/^[a-zA-Z][a-zA-Z+\-.]*:/.test(trimmed) ? trimmed : `https://${trimmed}`);
-    } catch {
-      return null;
-    }
-  }
-
-  function isReddItHost(hostname) {
-    return /(^|\.)redd\.it$/i.test(hostname || '');
-  }
-
-  function isRedditHost(url) {
-    try {
-      const host = new URL(url).hostname;
-      return /(^|\.)reddit\.com$/i.test(host) || isReddItHost(host);
-    } catch {
-      return false;
-    }
-  }
-
-  function isRedditThreadUrl(url) {
-    const u = parseRedditInput(url);
-    if (!u) return false;
-    if (isReddItHost(u.hostname)) {
-      return /^\/[A-Za-z0-9]+\/?$/.test(u.pathname);
-    }
-    if (!/(^|\.)reddit\.com$/i.test(u.hostname)) return false;
-    return /\/comments\/[^/]+/i.test(u.pathname) || /\/s\/[^/]+/i.test(u.pathname);
-  }
-
-  function normalizeRedditThreadUrl(url) {
-    const u = parseRedditInput(url);
-    if (!u) throw new Error('Invalid Reddit URL');
-    if (isReddItHost(u.hostname)) {
-      const id = u.pathname.replace(/\//g, '');
-      return `https://www.reddit.com/comments/${id}`;
-    }
-    if (/^(old|sh|new)\.reddit\.com$/i.test(u.hostname)) {
-      u.hostname = 'www.reddit.com';
-    } else if (u.hostname === 'reddit.com') {
-      u.hostname = 'www.reddit.com';
-    }
-    u.search = '';
-    u.hash = '';
-    u.pathname = u.pathname.replace(/\/+$/, '');
-    return u.toString();
-  }
-
-  function toRedditSortParam(sort) {
-    return sort === 'best' ? 'confidence' : sort;
-  }
-
-  function toRedditJsonUrl(threadUrl, sort) {
-    const u = new URL(threadUrl);
-    u.hash = '';
-    u.search = '';
-    u.pathname = u.pathname.replace(/\/+$/, '');
-    if (!u.pathname.endsWith('.json')) {
-      u.pathname = `${u.pathname}.json`;
-    }
-    u.searchParams.set('sort', toRedditSortParam(sort));
-    u.searchParams.set('raw_json', '1');
-    return u.toString();
-  }
-
-  function toOldRedditJsonUrl(threadUrl, sort) {
-    const u = new URL(toRedditJsonUrl(threadUrl, sort));
-    u.hostname = 'old.reddit.com';
-    return u.toString();
-  }
-
   function describeError(error) {
     if (error == null) return 'unknown error';
     if (typeof error === 'string') return error;
@@ -230,98 +146,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderReplyTree();
   }
 
-  function setPasteError(message) {
-    if (ui.pasteStatus) ui.pasteStatus.textContent = message || '';
-    ui.needThreadGate?.classList.toggle('has-error', Boolean(message));
-  }
-
-  function setNeedThreadGate(active) {
-    ui.panel.classList.toggle('is-need-thread', active);
-    if (active) {
-      currentTabUrl = null;
-      lastThreadJson = null;
-      currentProcessedData = null;
-      clearDashboardMetrics();
-      ui.title.classList.remove('is-error');
-      ui.title.classList.add('truncate');
-      ui.subreddit.textContent = 'r/...';
-      ui.title.textContent = 'Paste a thread to begin';
-    } else {
-      ui.panel.classList.remove('is-paste-fallback');
-      setPasteError('');
-    }
+  function clearThreadState() {
+    currentTabUrl = null;
+    lastThreadJson = null;
+    currentProcessedData = null;
+    clearDashboardMetrics();
+    ui.title.classList.remove('is-error');
   }
 
   function showFetchError(error) {
     lastThreadJson = null;
     currentProcessedData = null;
     clearDashboardMetrics();
-    ui.panel.classList.add('is-need-thread');
-    if (ui.pasteThreadBtn) {
-      ui.pasteThreadBtn.disabled = false;
-      const label = ui.pasteThreadBtn.querySelector('.btn-label');
-      if (label) label.textContent = 'Paste & Get Thread';
-    }
+    let retrySeconds = null;
     if (error.status === 429) {
       const waitMs = fetchBackoffMs;
       fetchBackoffUntil = Date.now() + waitMs;
       fetchBackoffMs = Math.min(fetchBackoffMs * 2, 120000);
-      const waitSec = Math.ceil(waitMs / 1000);
-      setPasteError(`Too many requests. Retrying in ${waitSec}s.`);
+      retrySeconds = Math.ceil(waitMs / 1000);
       setTimeout(() => {
         if (!currentTabUrl || lastThreadJson || Date.now() < fetchBackoffUntil) return;
         performFetch();
       }, waitMs + 50);
-    } else {
-      const statusPart = error.status != null ? ` (HTTP ${error.status})` : '';
-      setPasteError(`${error.message || 'Could not load this thread'}${statusPart}`);
     }
+    adapter.showFetchError({ error, retrySeconds });
   }
 
-  function readThreadUrlFromUi() {
-    const fromInput = (ui.threadUrlInput?.value || '').trim();
-    if (fromInput) return fromInput;
-    return (pageQueryParams().get('redditUrl') || '').trim();
-  }
-
-  function assertUsableThreadListing(json, source) {
-    const post = json?.[0]?.data?.children?.[0]?.data;
-    if (!post || !post.id) {
-      const err = new Error(`${source} Reddit JSON missing post listing`);
-      err.status = null;
-      err.source = source;
-      throw err;
-    }
-    return json;
-  }
-
-  async function fetchNativeThreadJson(threadUrl, sort) {
-    const listingUrl = pageQueryParams().get('listingUrl');
-    if (listingUrl) {
-      const listingRes = await fetch(listingUrl, { headers: { Accept: 'application/json' } });
-      if (!listingRes.ok) {
-        const err = new Error(`Harness listingUrl failed: HTTP ${listingRes.status}`);
-        err.status = listingRes.status;
-        err.source = 'listingUrl';
-        throw err;
-      }
-      return assertUsableThreadListing(await listingRes.json(), 'listingUrl');
-    }
-
-    const res = await fetch(threadApiUrl(threadUrl, sort), { headers: { Accept: 'application/json' } });
-    const payload = await res.json().catch(() => null);
-    if (!res.ok) {
-      const err = new Error(payload?.error || `Reddit JSON failed: HTTP ${res.status}`);
-      err.status = res.status;
-      err.source = 'proxy';
-      throw err;
-    }
-    return assertUsableThreadListing(payload, 'proxy');
+  async function fetchThreadListing(threadUrl, sort, signal) {
+    const json = await adapter.fetchListing({ threadUrl, sort, signal });
+    return domain.assertUsableListing(json, adapter.id);
   }
 
   function applyFiltersFromCache() {
     if (!lastThreadJson) return;
-    const processed = processRedditData(lastThreadJson);
+    const processed = domain.processListing(lastThreadJson, {
+      postOnly: ui.postOnlyToggle.checked,
+      maxComments: ui.commentLimit.value,
+      maxReplies: ui.maxReplies.value,
+      maxReplyChildren: ui.maxReplyChildren.value
+    });
     currentProcessedData = processed;
     ui.title.classList.remove('is-error');
     ui.title.classList.add('truncate');
@@ -330,21 +193,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function init() {
     try {
-      const rawUrl = readThreadUrlFromUi();
-      if (ui.threadUrlInput && !ui.threadUrlInput.value.trim() && rawUrl) {
-        ui.threadUrlInput.value = rawUrl;
-      }
-      if (!rawUrl) {
-        setNeedThreadGate(true);
+      const context = contract.validateContext(await adapter.resolveContext());
+      adapter.renderContext(context);
+      if (context.state !== 'ready') {
+        clearThreadState();
         return;
       }
-      if (!isRedditThreadUrl(rawUrl)) {
-        setNeedThreadGate(true);
-        setPasteError('Use a reddit.com, redd.it, or share /s/ link.');
-        return;
-      }
-
-      const cleanUrl = normalizeRedditThreadUrl(rawUrl);
+      const cleanUrl = context.threadUrl.trim();
       const urlChanged = cleanUrl !== currentTabUrl;
       if (urlChanged) {
         currentTabUrl = cleanUrl;
@@ -353,17 +208,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         fetchBackoffUntil = 0;
         fetchBackoffMs = 15000;
       }
-      if (lastThreadJson) {
-        setNeedThreadGate(false);
-        return;
-      }
+      if (lastThreadJson) return;
       if (Date.now() < fetchBackoffUntil) return;
-      ui.panel.classList.add('is-need-thread');
-      if (ui.pasteThreadBtn) {
-        ui.pasteThreadBtn.disabled = true;
-        const label = ui.pasteThreadBtn.querySelector('.btn-label');
-        if (label) label.textContent = 'Getting thread…';
-      }
       performFetch();
     } catch (e) {
       console.error('Init error:', e);
@@ -380,18 +226,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function resetApp() {
     abortGenerate();
+    if (fetchAbort) {
+      fetchAbort.abort();
+      fetchAbort = null;
+    }
     await hostReturns.resetReturns();
     hasAutoFocusedInputSliders = false;
-    currentTabUrl = null;
-    lastThreadJson = null;
-    clearDashboardMetrics();
+    clearThreadState();
     ui.title.classList.remove('is-error');
     ui.title.classList.add('truncate');
-    if (ui.threadUrlInput) ui.threadUrlInput.value = '';
-    const next = new URL(window.location.href);
-    next.searchParams.delete('redditUrl');
-    window.history.replaceState({}, '', next);
-    init();
+    await adapter.resetContext();
+    await init();
   }
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -547,62 +392,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  function commitThreadUrlFromInput() {
-    const raw = (ui.threadUrlInput?.value || '').trim();
-    const next = new URL(window.location.href);
-    if (raw && isRedditThreadUrl(raw)) {
-      next.searchParams.set('redditUrl', normalizeRedditThreadUrl(raw));
-    } else if (raw) {
-      next.searchParams.set('redditUrl', raw);
-    } else {
-      next.searchParams.delete('redditUrl');
-    }
-    window.history.replaceState({}, '', next);
-    lastThreadJson = null;
-    currentTabUrl = null;
-    init();
-  }
-
-  ui.threadUrlInput?.addEventListener('change', commitThreadUrlFromInput);
-  ui.threadUrlInput?.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      commitThreadUrlFromInput();
-    }
-  });
-
-  async function pasteAndGetThread() {
-    setPasteError('');
-    let raw = '';
-    try {
-      raw = (await navigator.clipboard.readText()).trim();
-    } catch {
-      ui.panel.classList.add('is-paste-fallback');
-      setPasteError('Clipboard is blocked. Paste the thread URL below.');
-      ui.threadUrlInput?.focus();
-      return;
-    }
-    if (!raw) {
-      setPasteError('Clipboard is empty. Copy a Reddit thread link, then try again.');
-      return;
-    }
-    if (!isRedditThreadUrl(raw)) {
-      setPasteError('Use a reddit.com, redd.it, or share /s/ link.');
-      return;
-    }
-    if (ui.pasteThreadBtn) {
-      ui.pasteThreadBtn.disabled = true;
-      const label = ui.pasteThreadBtn.querySelector('.btn-label');
-      if (label) label.textContent = 'Getting thread…';
-    }
-    if (ui.threadUrlInput) ui.threadUrlInput.value = raw;
-    commitThreadUrlFromInput();
-  }
-
-  ui.pasteThreadBtn?.addEventListener('click', () => {
-    pasteAndGetThread();
-  });
-
   ui.postOnlyToggle.addEventListener('change', () => {
     updatePostOnlyGating();
   });
@@ -611,21 +400,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!currentTabUrl) return;
     const seq = ++fetchSeq;
     const sort = getSelectedSort();
+    if (fetchAbort) fetchAbort.abort();
+    fetchAbort = new AbortController();
+    const signal = fetchAbort.signal;
+    adapter.setFetchPending(true);
 
     try {
-      const json = await fetchNativeThreadJson(currentTabUrl, sort);
+      const json = await fetchThreadListing(currentTabUrl, sort, signal);
       if (seq !== fetchSeq) return;
 
       lastThreadJson = json;
       fetchBackoffUntil = 0;
       fetchBackoffMs = 15000;
       applyFiltersFromCache();
-      setNeedThreadGate(false);
-      if (ui.pasteThreadBtn) {
-        ui.pasteThreadBtn.disabled = false;
-        const label = ui.pasteThreadBtn.querySelector('.btn-label');
-        if (label) label.textContent = 'Paste & Get Thread';
-      }
+      adapter.onListingLoaded({
+        threadUrl: currentTabUrl,
+        listing: lastThreadJson,
+        processedData: currentProcessedData
+      });
 
       if (!hasAutoFocusedInputSliders && ui.screenInput.style.display !== 'none') {
         hasAutoFocusedInputSliders = true;
@@ -633,128 +425,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (error) {
       if (seq !== fetchSeq) return;
-      if (error.status == null && /not ready/i.test(error.message || '')) {
-        console.warn('[Read Me Reddit] Thread fetch waiting for Reddit tab:', error.message);
-        return;
-      }
+      if (error?.name === 'AbortError') return;
       console.error(
         `[Read Me Reddit] Thread fetch failed: ${describeError(error)} (HTTP ${error.status ?? '?'}, ${error.source || 'unknown'})`
       );
       showFetchError(error);
+    } finally {
+      if (fetchAbort?.signal === signal) fetchAbort = null;
+      if (seq === fetchSeq) adapter.setFetchPending(false);
     }
-  }
-
-  function formatTime(chars) {
-    const totalSec = Math.ceil(chars / CHARS_PER_SECOND);
-    const minutes = Math.floor(totalSec / 60);
-    const seconds = totalSec % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }
-
-  const stripUrls = (text) => (text
-    ? text
-        .replace(/\[([^\]]*)\]\(([^)]*)\)/g, '$1')
-        .replace(/https?:\/\/[^\s]+/g, '')
-        .trim()
-    : '');
-
-  const KNOWN_BOT_USERNAMES = ['automoderator', 'spotlight-app'];
-  const BOT_FOOTER_RE = /i\s+am\s+a\s+bot,?\s+and\s+this\s+action\s+was\s+performed\s+automatically/i;
-  const BOT_USERNAME_SUFFIX_RE = /(^|[-_])bot$/i;
-  function isBotComment(author, body) {
-    const name = (author || '').toLowerCase();
-    if (KNOWN_BOT_USERNAMES.includes(name)) return true;
-    if (BOT_USERNAME_SUFFIX_RE.test(name)) return true;
-    if (BOT_FOOTER_RE.test(body || '')) return true;
-    return false;
-  }
-
-  const REMOVED_DELETED_BODY_RE = /^\[(removed|deleted)\]$/i;
-  const IMAGE_ONLY_BODY_RE = /^!?\[\]\([^)]*\)$|^https?:\/\/\S+\.(jpe?g|png|gif|webp|gifv)(\?\S*)?$|^https?:\/\/(i\.redd\.it|preview\.redd\.it|v\.redd\.it)\/\S+$/i;
-  function isNonNarratableBody(rawBody) {
-    const trimmed = (rawBody || '').trim();
-    if (!trimmed) return true;
-    if (REMOVED_DELETED_BODY_RE.test(trimmed)) return true;
-    if (IMAGE_ONLY_BODY_RE.test(trimmed)) return true;
-    return false;
-  }
-
-  const FIXED_MAX_DEPTH = 2;
-
-  function processRedditData(json) {
-    const postData = json[0]?.data?.children?.[0]?.data;
-    const comments = json[1]?.data?.children || [];
-    const postOnly = ui.postOnlyToggle.checked;
-    const maxComments = parseInt(ui.commentLimit.value);
-    const maxDepth = FIXED_MAX_DEPTH;
-    const maxReplies = parseInt(ui.maxReplies.value);
-    const maxReplyChildren = parseInt(ui.maxReplyChildren.value);
-
-    const facts = {
-      subreddit: postData?.subreddit_name_prefixed || 'r/unknown',
-      op: postData?.author || 'unknown',
-      title: postData?.title || '',
-      body: stripUrls(postData?.selftext || ''),
-      transcript: []
-    };
-
-    let postChars = facts.op.length + facts.title.length + facts.body.length;
-    let commentChars = 0;
-    let replyChars = 0;
-    let replyChildChars = 0;
-
-    function traverse(nodes, depth, parentIndex) {
-      if (depth > maxDepth) return;
-      let count = 0;
-      let siblingsProcessed = 0;
-      const siblingCap = depth === 1 ? maxReplies : maxReplyChildren;
-
-      for (const node of nodes) {
-        if (node.kind === 'more') continue;
-        if (depth === 0 && count >= maxComments) break;
-        if (depth > 0 && siblingsProcessed >= siblingCap) break;
-
-        const d = node.data;
-        const cleaned = stripUrls(d.body || '');
-        if (isBotComment(d.author, d.body) || isNonNarratableBody(d.body) || !cleaned) continue;
-
-        const entryChars = (d.author?.length || 0) + cleaned.length;
-        const entryIndex = facts.transcript.length;
-        facts.transcript.push({
-          user: d.author || '',
-          content: cleaned,
-          depth,
-          parentIndex: depth === 0 ? null : parentIndex
-        });
-
-        if (depth === 0) {
-          commentChars += entryChars;
-          count++;
-        } else if (depth === 1) {
-          replyChars += entryChars;
-          siblingsProcessed++;
-        } else {
-          replyChildChars += entryChars;
-          siblingsProcessed++;
-        }
-
-        if (d.replies?.data?.children) {
-          traverse(d.replies.data.children, depth + 1, entryIndex);
-        }
-      }
-    }
-
-    if (!postOnly) {
-      traverse(comments, 0, null);
-    }
-
-    return {
-      postTitle: facts.title,
-      subreddit: facts.subreddit,
-      totalChars: postChars + commentChars + replyChars + replyChildChars,
-      segments: { postChars, commentChars, replyChars, replyChildChars },
-      flatData: { ...facts, permalink: postData?.permalink || '' }
-    };
   }
 
   function updateMetricsUI(facts) {
@@ -771,19 +450,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     ui.title.classList.add('truncate');
     ui.title.textContent = data.postTitle || 'Waiting...';
     ui.subreddit.textContent = data.subreddit || 'r/unknown';
-    ui.time.textContent = formatTime(data.totalChars);
+    ui.time.textContent = domain.formatEstimate(data.totalChars);
     updateMetricsUI(data);
-    const permalink = data.flatData?.permalink || lastThreadJson?.[0]?.data?.children?.[0]?.data?.permalink;
-    if (permalink && ui.threadUrlInput) {
-      const full = permalink.startsWith('http')
-        ? permalink.replace(/\/+$/, '')
-        : `https://www.reddit.com${String(permalink).replace(/\/+$/, '')}`;
-      ui.threadUrlInput.value = full;
-      currentTabUrl = normalizeRedditThreadUrl(full);
-      const next = new URL(window.location.href);
-      next.searchParams.set('redditUrl', currentTabUrl);
-      window.history.replaceState({}, '', next);
-    }
   }
 
   ui.resetBtn.addEventListener('click', () => {
@@ -799,15 +467,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert('No filtered Reddit thread is loaded yet.');
       return;
     }
-    if (!payload.title) {
-      alert('Thread title is missing; cannot generate audio.');
-      return;
-    }
-    if (!payload.subreddit) {
-      alert('Subreddit is missing; cannot generate audio.');
-      return;
-    }
-
     abortGenerate();
     generateAbort = new AbortController();
     const signal = generateAbort.signal;
@@ -848,13 +507,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   window.__rmrLoadListingForTest = function loadListingForTest(json) {
-    lastThreadJson = json;
-    setOffRedditGate(false);
-    setLoginRequiredGate(false);
-    setNeedThreadGate(false);
+    lastThreadJson = domain.assertUsableListing(json, 'test');
     applyFiltersFromCache();
   };
 
   initStaticUi();
-  init();
+  await init();
+  return Object.freeze({
+    reload: init,
+    reset: resetApp,
+    dispose() {
+      abortGenerate();
+      if (fetchAbort) fetchAbort.abort();
+      unsubscribeContextChanges();
+    }
+  });
+  }
 });

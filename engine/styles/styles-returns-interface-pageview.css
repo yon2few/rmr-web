@@ -79,27 +79,4 @@
     height: 0;
 }
 
-#pageViewDisplay span {
-    background: transparent;
-    transition: all 0.2s ease;
-    border-radius: 4px;
-    padding: 2px 4px;
-    display: inline;
-}
-
-#pageViewDisplay.playing span {
-    transition: all 0.2s ease;
-}
-
-#pageViewDisplay.playing span.active {
-    background: #000000;
-    color: var(--active-word-color);
-    font-weight: 700;
-    transform: scale(var(--active-word-scale, 1.13));
-    transform-origin: bottom;
-    opacity: 1;
-    position: relative;
-    z-index: 10;
-    display: inline-block;
-    vertical-align: middle;
-}
+/* Word highlight states live only in playback-module/highlighting/highlighting.css. */

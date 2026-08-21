@@ -1,4 +1,4 @@
-// Host chunk query/load for engine navigation. Methods match
+// Shared RMR chunk query/load for engine navigation. Methods match
 // host/audio-input-cloudrun.js in the shared engine repo.
 
 function formatChunkOrdinal(index) {
