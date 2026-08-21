@@ -48,6 +48,15 @@ disabled by contract. The Netlify functions,
 OAuth/share expansion service, local proxy, and deploy scripts remain
 consumer-owned.
 
+The `/run` trace is: `rmr-client/domain.js` builds `{ title, subreddit,
+flatData }`; `rmr-client/client.js` appends `/run` to the URL returned by
+`platform-adapter.js`; `rmr-client/host-returns.js` performs and consumes the
+streaming POST. The canonical backend `../read-me-reddit-transform-service`
+receives it in `main.py`, delegates transformation and orchestration to
+`transform.py`, then streams `artreader-v35/generate-v35-reddit` events back to
+this client. The backend README records the exact deployed commit, build,
+revision, and image digest.
+
 ## Reddit JSON
 
 Browsers cannot call reddit.com from `artreader.art` (CORS). The page
