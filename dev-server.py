@@ -14,10 +14,6 @@ import sys
 ROOT = Path(__file__).resolve().parent
 UA = "ArTReader-RMR/1.0 (https://artreader.art/rmr)"
 PORT = 8777
-TRANSFORM_RUN_URL = os.environ.get(
-    "RMR_TRANSFORM_RUN_URL",
-    "https://read-me-reddit-transform-service-375541022505.us-central1.run.app/run",
-).strip()
 
 
 def parse_input(url: str):
@@ -290,51 +286,6 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path in ("/api/thread", "/rmr/api/thread"):
             return self.handle_thread(parsed)
         return super().do_GET()
-
-    def do_POST(self):
-        parsed = urlparse(self.path)
-        if parsed.path not in ("/api/generate/run", "/rmr/api/generate/run"):
-            return self.json(404, {"error": "Unknown POST endpoint."})
-        content_type = (self.headers.get("Content-Type") or "").lower()
-        if not content_type.startswith("application/json"):
-            return self.json(415, {"error": "Content-Type application/json is required."})
-        try:
-            content_length = int(self.headers.get("Content-Length") or "0")
-        except ValueError:
-            return self.json(400, {"error": "Content-Length must be an integer."})
-        if content_length < 1:
-            return self.json(400, {"error": "A JSON request body is required."})
-        body = self.rfile.read(content_length)
-        request = Request(
-            TRANSFORM_RUN_URL,
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urlopen(request, timeout=300) as response:
-                self.send_response(response.status)
-                self.send_header(
-                    "Content-Type",
-                    response.headers.get("Content-Type") or "application/x-ndjson; charset=utf-8",
-                )
-                self.send_header("Cache-Control", "no-store")
-                self.end_headers()
-                while True:
-                    chunk = response.read(8192)
-                    if not chunk:
-                        break
-                    self.wfile.write(chunk)
-                    self.wfile.flush()
-        except HTTPError as error:
-            payload = error.read()
-            self.send_response(error.code)
-            self.send_header("Content-Type", error.headers.get("Content-Type") or "application/json")
-            self.send_header("Content-Length", str(len(payload)))
-            self.end_headers()
-            self.wfile.write(payload)
-        except (URLError, TimeoutError) as error:
-            return self.json(502, {"error": f"Transform proxy failed: {error}"})
 
     def handle_thread(self, parsed):
         qs = parse_qs(parsed.query)

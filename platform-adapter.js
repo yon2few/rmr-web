@@ -3,7 +3,6 @@
 
   document.documentElement.dataset.rmrPlatform = 'web';
 
-  const LOCAL_TRANSFORM_URL = 'http://127.0.0.1:8787';
   const adapterScript = document.currentScript;
   if (!adapterScript?.src) {
     throw new Error('[RmrWebAdapter] The adapter script URL is unavailable.');
@@ -104,12 +103,6 @@
     enableMp3Export: false,
 
     async resolveTransformBaseUrl() {
-      const params = queryParams();
-      const queryUrl = String(params.get('adkProxy') || '').trim().replace(/\/$/, '');
-      if (queryUrl) return queryUrl;
-      if (String(params.get('generateBackend') || '').trim().toLowerCase() === 'local') {
-        return LOCAL_TRANSFORM_URL;
-      }
       return DEFAULT_TRANSFORM_URL;
     },
 

@@ -51,7 +51,9 @@ consumer-owned.
 
 Browsers cannot call reddit.com from `artreader.art` (CORS). The page
 fetches `api/thread?url=&sort=`. Production maps `/rmr/api/thread` to
-the Netlify function. Local: `python3 dev-server.py`.
+the Netlify function. `dev-server.py` is retained as consumer-owned legacy
+tooling; the workspace-wide deploy-first rule prohibits using it for functional
+verification.
 
 App Share → Copy link is `/r/{sub}/s/{token}`, not a post id. Resolve
 it with authenticated Reddit OAuth on Cloud Run `rmr-share-expand`
