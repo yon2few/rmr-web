@@ -3,9 +3,12 @@
 
   document.documentElement.dataset.rmrPlatform = 'web';
 
-  const DEFAULT_TRANSFORM_URL =
-    'https://read-me-reddit-transform-service-375541022505.us-central1.run.app';
   const LOCAL_TRANSFORM_URL = 'http://127.0.0.1:8787';
+  const adapterScript = document.currentScript;
+  if (!adapterScript?.src) {
+    throw new Error('[RmrWebAdapter] The adapter script URL is unavailable.');
+  }
+  const DEFAULT_TRANSFORM_URL = new URL('api/generate', new URL('.', adapterScript.src)).toString();
   let contextListener = null;
   let inputError = '';
 

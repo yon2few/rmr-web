@@ -59,6 +59,8 @@ cp "${SCRIPT_DIR}/netlify/functions/rmr-thread-json.js" \
 mkdir -p "${PROD_ROOT}/netlify/edge-functions"
 cp "${SCRIPT_DIR}/netlify/edge-functions/rmr-expand.js" \
   "${PROD_ROOT}/netlify/edge-functions/rmr-expand.js"
+cp "${SCRIPT_DIR}/netlify/edge-functions/rmr-generate.js" \
+  "${PROD_ROOT}/netlify/edge-functions/rmr-generate.js"
 
 require_file "${RMR_BUILD_DIR}/index.html"
 require_file "${RMR_BUILD_DIR}/platform-adapter.js"
@@ -66,6 +68,7 @@ require_file "${RMR_BUILD_DIR}/rmr-client/client.js"
 require_file "${RMR_BUILD_DIR}/rmr-client/host-returns.js"
 require_file "${RMR_BUILD_DIR}/engine/overlay/markup.js"
 require_file "${BUILD_DIR}/netlify/functions/rmr-thread-json.js"
+require_file "${PROD_ROOT}/netlify/edge-functions/rmr-generate.js"
 cp "${SITE_NETLIFY_TOML}" "${BUILD_DIR}/netlify.toml"
 
 cd "${PROD_ROOT}"
