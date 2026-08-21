@@ -64,12 +64,11 @@ Arctic/Pullpush. Create the Reddit script app at
 `https://www.reddit.com/prefs/apps`. First expander deploy:
 `REDDIT_CLIENT_ID=… REDDIT_CLIENT_SECRET=… ./deploy-rmr-share-expand-cloudrun.sh`.
 
-## Local harness
+## Validation policy — deploy first
 
-```bash
-cd "/Users/yonyonson/Developer/ArT Reader/rmr web"
-python3 dev-server.py
-# http://127.0.0.1:8777/?redditUrl=<url-encoded Reddit thread>
-# Deterministic mirrored fixture:
-# http://127.0.0.1:8777/?redditUrl=https%3A%2F%2Fwww.reddit.com%2Fr%2Ftesting%2Fcomments%2Fabc123%2Ffixture&listingUrl=http%3A%2F%2F127.0.0.1%3A8777%2Ftest-fixtures%2Fthread-listing.json
-```
+The workspace-wide deploy-first rule in `../AGENTS.md` applies here. Never run
+the RMR web app or its browser flows against localhost. After static checks
+pass, commit and push the intended source, deploy with `./deploy-rmr-web.sh`,
+and test only the deployed `https://artreader.art/rmr` environment. Verify the
+homepage and `https://artreader.art/reader` after every RMR deploy so the
+shared-site publish cannot silently remove either sibling product.
