@@ -14,6 +14,7 @@ Do not load `engine/index.js`. Brand is the slideshow photograph.
 | Public path | `https://artreader.art/rmr` |
 | Netlify site | `artreader.art` (ID `c7def6d9-065e-4b3d-a658-773c7ac82299`) |
 | Transform service | `read-me-reddit-transform-service` |
+| Transform source | `../read-me-reddit-transform-service` / `yon2few/read-me-reddit-transform-service` |
 | Transform URL | `https://read-me-reddit-transform-service-375541022505.us-central1.run.app` |
 | GitHub | `yon2few/rmr-web` |
 | Script | `deploy-rmr-web.sh` |
