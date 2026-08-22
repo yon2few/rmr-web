@@ -5,7 +5,7 @@ This web consumer mirrors RMR input files from
 Engine playback is refreshed separately from ArT Reader Engine via
 `./refresh-engine-copy.sh`.
 
-- Shared RMR commit: `d257142174a7a0e575fbf2c19554770eac64ea81`
+- Shared RMR commit: `f4ccef56dc536edd47878b8e5a1c44e7626771f1`
 - Source bundle: `extension_art-reddit-json/`
 
 ## Copied inventory
@@ -15,9 +15,8 @@ Engine playback is refreshed separately from ArT Reader Engine via
 - `test-fixtures/**` → `test-fixtures/**`
 
 Consumer-owned files such as `index.html`, `web-host.css`,
-`platform-adapter.js`, Netlify functions, local proxy, and deploy
-scripts are never copied from the Chrome repository. Reddit URL→JSON
-is `../Cloud Run - Reddit URL to JSON for Web App`, not this tree.
+`platform-adapter.js`, Netlify functions, the OAuth/share expansion service,
+local proxy, and deploy scripts are never copied from the Chrome repository.
 
 Refresh only from a clean, pushed producer commit:
 

@@ -160,8 +160,22 @@ window.RmrClient = Object.freeze({
     }
   }
 
+  function waitForPaint() {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        setTimeout(resolve, 0);
+      });
+    });
+  }
+
+  function markEstimatePending() {
+    ui.time.textContent = 'Calculating…';
+    ui.time.classList.add('is-calculating');
+  }
+
   function clearDashboardMetrics() {
     currentProcessedData = null;
+    ui.time.classList.remove('is-calculating');
     ui.time.textContent = '0:00';
     ui.barPost.style.width = '0%';
     ui.barComments.style.width = '0%';
@@ -430,6 +444,7 @@ window.RmrClient = Object.freeze({
     fetchAbort = new AbortController();
     const signal = fetchAbort.signal;
     adapter.setFetchPending(true);
+    markEstimatePending();
 
     try {
       const json = await fetchThreadListing(currentTabUrl, sort, signal);
@@ -438,6 +453,9 @@ window.RmrClient = Object.freeze({
       lastThreadJson = json;
       fetchBackoffUntil = 0;
       fetchBackoffMs = 15000;
+      markEstimatePending();
+      await waitForPaint();
+      if (seq !== fetchSeq) return;
       applyFiltersFromCache();
       adapter.onListingLoaded({
         threadUrl: currentTabUrl,
@@ -476,6 +494,7 @@ window.RmrClient = Object.freeze({
     ui.title.classList.add('truncate');
     ui.title.textContent = data.postTitle || 'Waiting...';
     ui.subreddit.textContent = data.subreddit || 'r/unknown';
+    ui.time.classList.remove('is-calculating');
     ui.time.textContent = domain.formatEstimate(data.totalChars);
     updateMetricsUI(data);
   }
@@ -504,7 +523,6 @@ window.RmrClient = Object.freeze({
     } catch (err) {
       if (err?.name === 'AbortError') return;
       console.error('Generation failed:', err);
-      await hostReturns.resetReturns();
       ui.generationError.textContent = `Audio generation failed: ${err.message || err}`;
       ui.generationError.hidden = false;
     } finally {

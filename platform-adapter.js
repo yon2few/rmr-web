@@ -70,9 +70,7 @@
     try {
       raw = (await navigator.clipboard.readText()).trim();
     } catch (error) {
-      requireElement('panel').classList.add('is-paste-fallback');
-      setPasteError(`Clipboard access failed: ${error.message || error}. Paste the thread URL below.`);
-      requireElement('threadUrlInput').focus();
+      setPasteError(`Clipboard access failed: ${error.message || error}. Copy the thread URL and try Paste again.`);
       return;
     }
     if (!raw) {
@@ -88,7 +86,9 @@
   }
 
   function threadApiUrl(threadUrl, sort) {
-    const api = new URL('api/thread', window.location.href);
+    const href = window.location.href;
+    const base = href.endsWith('/') ? href : `${href}/`;
+    const api = new URL('api/thread', base);
     api.searchParams.set('url', threadUrl);
     api.searchParams.set('sort', sort);
     return api.toString();
@@ -177,18 +177,17 @@
       footer.textContent = 'Software by ArT Reader';
       if (context.state === 'need-thread') {
         requireElement('subredditLabel').textContent = 'r/...';
-        requireElement('postTitle').textContent = 'Paste a thread to begin';
-        setPasteButton({ disabled: false, label: 'Paste & Get Thread' });
+        requireElement('postTitle').textContent = 'Paste a Reddit URL to begin';
+        setPasteButton({ disabled: false, label: 'Paste Reddit URL' });
         setPasteError(context.message || '');
       } else {
-        panel.classList.remove('is-paste-fallback');
         setPasteError('');
       }
     },
 
     showFetchError({ error, retrySeconds }) {
       requireElement('panel').classList.add('is-need-thread');
-      setPasteButton({ disabled: false, label: 'Paste & Get Thread' });
+      setPasteButton({ disabled: false, label: 'Paste Reddit URL' });
       const status = error.status != null ? ` (HTTP ${error.status})` : '';
       const message = retrySeconds != null
         ? `Too many requests. Retrying in ${retrySeconds}s.`
@@ -200,7 +199,7 @@
       requireElement('panel').setAttribute('aria-busy', String(isPending === true));
       setPasteButton({
         disabled: isPending === true,
-        label: isPending === true ? 'Getting thread…' : 'Paste & Get Thread'
+        label: isPending === true ? 'Getting thread…' : 'Paste Reddit URL'
       });
     },
 

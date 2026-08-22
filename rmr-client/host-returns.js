@@ -597,56 +597,70 @@ function createHostPlayer({ enableMp3Export } = {}) {
             player.isGenerating = true;
             player.loading.showLoadingInterface();
             player.syncOverlayActionState({ mode: 'loading', isGenerating: true, isPlaying: false });
-
-            const stream = await transport.postJsonStream({ endpoint, payload });
-
-            if (!stream || typeof stream.getReader !== 'function') {
-                throw new Error('Transform service did not return a readable stream.');
-            }
-
-            await transport.consumeNdjsonStream(stream, {
-                onJobStart: async (event) => {
-                    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-                    streamTotalChunks = event.totalChunks;
-                    streamJobStartedFlag = true;
-                    audioChunks = new Array(event.totalChunks).fill(null);
-                    player.loading.handleSubmissionAccepted({ totalChunks: event.totalChunks });
-                },
-                onChunkReady: async (event) => {
-                    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-                    const prepared = dataCore.preparePagesData(event.chunk.pages || []);
-                    const chunk = { ...event.chunk, pages: prepared, audioUrl: event.chunk.moduleAudioUrl || event.chunk.audioUrl };
-                    audioChunks[event.chunkIndex] = chunk;
-                    if (enableMp3Export) {
-                        await player.localAudio.materializeChunkAudio(event.chunkIndex, chunk);
-                    }
-                    if (event.chunkIndex > 0) {
-                        chunkLoadCoordinator.markChunkDelivered(event.chunkIndex);
-                    }
-                    if (!playbackUnlocked) {
-                        const n = Number.isInteger(streamTotalChunks) ? streamTotalChunks : audioChunks.length;
-                        player.loading.handleChunkReady({ chunkIndex: event.chunkIndex, totalChunks: n });
-                    }
-                    await maybeUnlockFirstChunks();
-                },
-                onComplete: async () => {
-                    const n = Number.isInteger(streamTotalChunks) ? streamTotalChunks : audioChunks.length;
-                    player.loading.handleSubmissionComplete({ totalChunks: n });
-                    player.isGenerating = false;
-                    await maybeUnlockFirstChunks();
-                    if (!enableMp3Export || player.localAudio.hasCompleteLocalAudio()) {
-                        player.markSubmissionReady();
-                    }
-                    if (player.activeView !== 'input') {
-                        player.syncOverlayActionState({
-                            mode: player.activeView,
-                            isGenerating: false,
-                            isPlaying: player.getIsPlaying()
-                        });
-                    }
-                }
+            await new Promise((resolve) => {
+                requestAnimationFrame(() => {
+                    setTimeout(resolve, 0);
+                });
             });
-            player.isGenerating = false;
+            if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+            try {
+                const stream = await transport.postJsonStream({ endpoint, payload });
+
+                if (!stream || typeof stream.getReader !== 'function') {
+                    throw new Error('Transform service did not return a readable stream.');
+                }
+
+                await transport.consumeNdjsonStream(stream, {
+                    onJobStart: async (event) => {
+                        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                        streamTotalChunks = event.totalChunks;
+                        streamJobStartedFlag = true;
+                        audioChunks = new Array(event.totalChunks).fill(null);
+                        player.loading.handleSubmissionAccepted({ totalChunks: event.totalChunks });
+                    },
+                    onChunkReady: async (event) => {
+                        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+                        const prepared = dataCore.preparePagesData(event.chunk.pages || []);
+                        const chunk = { ...event.chunk, pages: prepared, audioUrl: event.chunk.moduleAudioUrl || event.chunk.audioUrl };
+                        audioChunks[event.chunkIndex] = chunk;
+                        if (enableMp3Export) {
+                            await player.localAudio.materializeChunkAudio(event.chunkIndex, chunk);
+                        }
+                        if (event.chunkIndex > 0) {
+                            chunkLoadCoordinator.markChunkDelivered(event.chunkIndex);
+                        }
+                        if (!playbackUnlocked) {
+                            const n = Number.isInteger(streamTotalChunks) ? streamTotalChunks : audioChunks.length;
+                            player.loading.handleChunkReady({ chunkIndex: event.chunkIndex, totalChunks: n });
+                        }
+                        await maybeUnlockFirstChunks();
+                    },
+                    onComplete: async () => {
+                        const n = Number.isInteger(streamTotalChunks) ? streamTotalChunks : audioChunks.length;
+                        player.loading.handleSubmissionComplete({ totalChunks: n });
+                        player.isGenerating = false;
+                        await maybeUnlockFirstChunks();
+                        if (!enableMp3Export || player.localAudio.hasCompleteLocalAudio()) {
+                            player.markSubmissionReady();
+                        }
+                        if (player.activeView !== 'input') {
+                            player.syncOverlayActionState({
+                                mode: player.activeView,
+                                isGenerating: false,
+                                isPlaying: player.getIsPlaying()
+                            });
+                        }
+                    }
+                });
+                player.isGenerating = false;
+            } catch (error) {
+                player.isGenerating = false;
+                if (error?.name !== 'AbortError') {
+                    player.loading.handleSubmissionFailed(error);
+                }
+                throw error;
+            }
         }
     };
 

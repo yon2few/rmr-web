@@ -156,6 +156,8 @@
     html[data-rmr-platform="extension"] .panel.is-login-required .login-required-gate.extension-entry,
     html[data-rmr-platform="extension"] .panel.is-need-thread .need-thread-gate.extension-entry { display: flex !important; }
     html[data-rmr-platform="web"] .web-entry { display: block !important; }
+    html[data-rmr-platform="web"] .thread-url-label.web-entry,
+    html[data-rmr-platform="web"] .thread-url-input.web-entry { display: none !important; }
 
     .thread-url-label {
       font-size: 12px;
@@ -253,6 +255,7 @@
 
     .metric-card { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
     .metric-value { font-size: 32px; font-weight: 700; color: var(--brand-gold); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+    .metric-value.is-calculating { font-size: 18px; letter-spacing: 0; }
     .bar-container { display: flex; width: 100%; height: 8px; border-radius: 999px; overflow: hidden; background: var(--tier-track-background); }
     .bar-segment { height: 100%; transition: width 0.12s ease; }
     #bar-post { width: 0%; background: var(--tier-post); }
