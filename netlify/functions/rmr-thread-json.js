@@ -1,7 +1,7 @@
 const REDDIT_UA = 'ArTReader-RMR/1.0 (https://artreader.art/rmr)';
 const SHARE_EXPAND_URL =
-  process.env.RMR_SHARE_EXPAND_URL ||
-  'https://rmr-share-expand-375541022505.us-central1.run.app';
+  process.env.REDDIT_URL_TO_JSON_SERVICE_URL ||
+  'https://reddit-url-to-json-service-375541022505.us-central1.run.app';
 
 function parseRedditInput(raw) {
   const trimmed = String(raw || '').trim();

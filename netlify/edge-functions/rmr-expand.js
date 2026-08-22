@@ -1,4 +1,5 @@
-const SHARE_EXPAND_URL = 'https://rmr-share-expand-375541022505.us-central1.run.app';
+const SHARE_EXPAND_URL =
+  'https://reddit-url-to-json-service-375541022505.us-central1.run.app';
 
 export default async (request) => {
   const incoming = new URL(request.url);

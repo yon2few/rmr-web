@@ -15,8 +15,9 @@ Engine playback is refreshed separately from ArT Reader Engine via
 - `test-fixtures/**` → `test-fixtures/**`
 
 Consumer-owned files such as `index.html`, `web-host.css`,
-`platform-adapter.js`, Netlify functions, the OAuth/share expansion service,
-local proxy, and deploy scripts are never copied from the Chrome repository.
+`platform-adapter.js`, Netlify functions, local proxy, and deploy
+scripts are never copied from the Chrome repository. Reddit URL→JSON
+is `../Cloud Run - Reddit URL to JSON for Web App`, not this tree.
 
 Refresh only from a clean, pushed producer commit:
 

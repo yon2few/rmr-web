@@ -76,8 +76,8 @@ def thread_id(url: str) -> str:
 
 
 SHARE_EXPAND_URL = os.environ.get(
-    "RMR_SHARE_EXPAND_URL",
-    "https://rmr-share-expand-375541022505.us-central1.run.app",
+    "REDDIT_URL_TO_JSON_SERVICE_URL",
+    "https://reddit-url-to-json-service-375541022505.us-central1.run.app",
 ).rstrip("/")
 BROWSER_UA = (
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
