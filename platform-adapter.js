@@ -4,7 +4,7 @@
   document.documentElement.dataset.rmrPlatform = 'web';
 
   const DEFAULT_TRANSFORM_URL =
-    'https://read-me-reddit-transform-service-375541022505.us-central1.run.app';
+    'https://rmr-backend-cloudrun-375541022505.us-central1.run.app';
   let contextListener = null;
   let inputError = '';
 

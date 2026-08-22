@@ -13,9 +13,9 @@ Do not load `engine/index.js`. Brand is the slideshow photograph.
 |----------|-----------------|
 | Public path | `https://artreader.art/rmr` |
 | Netlify site | `artreader.art` (ID `c7def6d9-065e-4b3d-a658-773c7ac82299`) |
-| Transform service | `read-me-reddit-transform-service` |
-| Transform source | `../read-me-reddit-transform-service` / `yon2few/read-me-reddit-transform-service` |
-| Transform URL | `https://read-me-reddit-transform-service-375541022505.us-central1.run.app` |
+| Transform service | `rmr-backend-cloudrun` |
+| Transform source | `../rmr-backend-cloudrun` / `yon2few/rmr-backend-cloudrun` |
+| Transform URL | `https://rmr-backend-cloudrun-375541022505.us-central1.run.app` |
 | GitHub | `yon2few/rmr-web` |
 | Script | `deploy-rmr-web.sh` |
 | Share expand | `rmr-share-expand` |
@@ -42,7 +42,7 @@ upstream engine commits. Never edit mirrored files in this consumer.
 `platform-adapter.js` is the web-only composition root. It owns paste,
 clipboard, URL history, `/api/thread`, proxy errors, and the web transform
 configuration. Production generation streams directly from
-`read-me-reddit-transform-service`; that service explicitly grants the two
+`rmr-backend-cloudrun`; that service explicitly grants the two
 production web origins and strict Chrome-extension origins. MP3 export is
 disabled by contract. The Netlify functions,
 OAuth/share expansion service, local proxy, and deploy scripts remain
@@ -51,7 +51,7 @@ consumer-owned.
 The `/run` trace is: `rmr-client/domain.js` builds `{ title, subreddit,
 flatData }`; `rmr-client/client.js` appends `/run` to the URL returned by
 `platform-adapter.js`; `rmr-client/host-returns.js` performs and consumes the
-streaming POST. The canonical backend `../read-me-reddit-transform-service`
+streaming POST. The canonical backend `../rmr-backend-cloudrun`
 receives it in `main.py`, delegates transformation and orchestration to
 `transform.py`, then streams `artreader-v35/generate-v35-reddit` events back to
 this client. The backend README records the exact deployed commit, build,
