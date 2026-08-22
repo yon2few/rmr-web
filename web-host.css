@@ -1,7 +1,9 @@
 /* /rmr host overlay contract — copied from ArT Reader Engine
    host/styles-core.css and engine/overlay/styles-overlay.css.
    Shared rmr-client/styles.css stays the Chrome side-panel (360px / 100% fill).
-   Do not edit those mirrored files here. */
+   Do not edit those mirrored files here.
+   Mobile overlay chrome (actions, dots, gutters tokens) loads from
+   host/styles-mobile.css. These selectors beat the side-panel #id fill rules. */
 
 html[data-rmr-platform="web"] {
   --overlay-width: 80%;
@@ -40,7 +42,7 @@ html[data-rmr-platform="web"] #rmr-root {
   min-height: 100dvh;
 }
 
-html[data-rmr-platform="web"] .panel {
+html[data-rmr-platform="web"]:not([data-shell-variant*="mobile"]) .panel {
   width: var(--overlay-width);
   max-width: var(--overlay-max-width);
   margin: var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)) auto 0;
@@ -48,12 +50,32 @@ html[data-rmr-platform="web"] .panel {
   max-height: var(--reader-input-expanded-overlay-height);
 }
 
+html[data-rmr-platform="web"][data-shell-variant*="mobile"] .panel {
+  position: fixed;
+  left: var(--mobile-overlay-inline-gutter);
+  right: var(--mobile-overlay-inline-gutter);
+  top: var(--mobile-input-shell-top);
+  width: auto;
+  max-width: none;
+  margin: 0;
+  height: auto;
+  max-height: calc(var(--mobile-overlay-shell-anchor-line) - var(--mobile-input-shell-top));
+  padding-top: calc(12px + var(--mobile-input-shell-breathing-room, 0px));
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+}
+
 html[data-rmr-platform="web"] .panel.is-returns-open {
+  position: static;
+  left: auto;
+  right: auto;
+  top: auto;
   width: 100%;
   max-width: none;
   margin: 0;
   height: 0;
   max-height: none;
+  padding: 0;
   overflow: visible;
 }
 
@@ -65,10 +87,10 @@ html[data-rmr-platform="web"] #returns-overlay-host.is-open {
 }
 
 /* Undo the side-panel 100% fill so Engine overlay geometry applies. */
-html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay,
-html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="loading"],
-html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="fullchunk"],
-html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="pageview"] {
+html[data-rmr-platform="web"]:not([data-shell-variant*="mobile"]) #returns-overlay-host .builtin-overlay,
+html[data-rmr-platform="web"]:not([data-shell-variant*="mobile"]) #returns-overlay-host .builtin-overlay[data-active-view="loading"],
+html[data-rmr-platform="web"]:not([data-shell-variant*="mobile"]) #returns-overlay-host .builtin-overlay[data-active-view="fullchunk"],
+html[data-rmr-platform="web"]:not([data-shell-variant*="mobile"]) #returns-overlay-host .builtin-overlay[data-active-view="pageview"] {
   top: var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh));
   left: 50%;
   transform: translateX(-50%);
@@ -79,7 +101,7 @@ html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active
   max-height: none;
 }
 
-html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="loading"] {
+html[data-rmr-platform="web"]:not([data-shell-variant*="mobile"]) #returns-overlay-host .builtin-overlay[data-active-view="loading"] {
   height: max(
     var(--input-overlay-height, 0px),
     var(--overlay-shell-height-effective, var(--overlay-shell-height, 72vh))
@@ -87,9 +109,62 @@ html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active
   max-height: calc(100vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)) - 24px);
 }
 
-html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="fullchunk"],
-html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="pageview"] {
+html[data-rmr-platform="web"]:not([data-shell-variant*="mobile"]) #returns-overlay-host .builtin-overlay[data-active-view="fullchunk"],
+html[data-rmr-platform="web"]:not([data-shell-variant*="mobile"]) #returns-overlay-host .builtin-overlay[data-active-view="pageview"] {
   height: calc(98vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)));
   min-height: calc(98vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)));
   max-height: calc(98vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)));
+}
+
+html[data-rmr-platform="web"][data-shell-variant*="mobile"] #returns-overlay-host .builtin-overlay {
+  left: var(--mobile-overlay-inline-gutter);
+  right: var(--mobile-overlay-inline-gutter);
+  width: auto;
+  max-width: none;
+  height: var(--overlay-shell-height-effective, var(--overlay-shell-height, 50vh));
+  max-height: var(--overlay-shell-height-effective, var(--overlay-shell-height, 50vh));
+  min-height: 0;
+  transform: none;
+  overflow: hidden;
+}
+
+html[data-rmr-platform="web"][data-shell-variant*="mobile"] #returns-overlay-host .builtin-overlay[data-active-view="fullchunk"],
+html[data-rmr-platform="web"][data-shell-variant*="mobile"] #returns-overlay-host .builtin-overlay[data-active-view="pageview"] {
+  position: fixed;
+  top: var(--mobile-reader-shell-top);
+  bottom: auto;
+  height: min(
+    var(--mobile-reader-overlay-max-height, 80dvh),
+    calc(
+      100dvh -
+      var(--mobile-reader-shell-top) -
+      var(--mobile-reader-swipe-zone-height, 0px) -
+      env(safe-area-inset-bottom, 0px)
+    )
+  );
+  min-height: 0;
+  max-height: min(
+    var(--mobile-reader-overlay-max-height, 80dvh),
+    calc(
+      100dvh -
+      var(--mobile-reader-shell-top) -
+      var(--mobile-reader-swipe-zone-height, 0px) -
+      env(safe-area-inset-bottom, 0px)
+    )
+  );
+}
+
+html[data-rmr-platform="web"][data-shell-variant*="mobile"] #returns-overlay-host .builtin-overlay[data-active-view="loading"] {
+  position: fixed;
+  left: 50%;
+  right: auto;
+  top: var(--mobile-input-shell-top);
+  bottom: auto;
+  width: min(84vw, 420px);
+  max-width: none;
+  height: auto;
+  min-height: 0;
+  max-height: calc(var(--mobile-overlay-shell-anchor-line) - var(--mobile-input-shell-top));
+  padding-top: calc(12px + var(--mobile-input-shell-breathing-room));
+  transform: translateX(-50%);
 }

@@ -13,4 +13,4 @@ Close enough is a ship-blocker. See `AGENTS.md` in this folder and the repo-root
 | `styles/` | PageView, FullChunk, nav, loading CSS |
 | `loading/` | Segment-line + first-sentence loading |
 
-Do not invent a second page-turn, highlight, or hydrate. Live `/legacy` is the oracle.
+Do not invent a second page-turn, highlight, or hydrate. Live `/v35` is the frozen AudioSystem snapshot.

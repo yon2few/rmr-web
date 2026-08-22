@@ -44,9 +44,11 @@ drop sibling routes.
 
 `rmr-client/`, `icons/`, and `test-fixtures/` are verbatim mirrors from
 `RMR - Chrome Extension`. Refresh with `./refresh-rmr-client-copy.sh`.
-`engine/` is a verbatim mirror from `ArT Reader - Engine (shared)`. Refresh
-with `./refresh-engine-copy.sh`. Never edit mirrored files here. See
-`RMR_SYNC.md` and `engine/SYNC.md`.
+`engine/` is a verbatim mirror from `ArT Reader - Engine (shared)`. The
+host-shell allowlist (`host/shell-access.js`, `host/shell-router.js`,
+`host/shell-variant.js`, `host/styles-mobile.css`) is refreshed from Engine
+`host/` by the same `./refresh-engine-copy.sh`. Never edit mirrored files
+here. See `RMR_SYNC.md`, `engine/SYNC.md`, and `host/SYNC.md`.
 
 `platform-adapter.js` is the web-only composition root. It owns paste,
 clipboard, URL history, `/api/thread`, proxy errors, and the web transform

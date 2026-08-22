@@ -1,0 +1,359 @@
+html[data-shell-variant*="mobile"] {
+    --mobile-overlay-inline-gutter: 24px;
+    --overlay-width: calc(100vw - (var(--mobile-overlay-inline-gutter) * 2));
+    --overlay-max-width: none;
+    --overlay-top-offset: 3vh;
+    --mobile-overlay-shell-anchor-line: 74vh;
+    --overlay-bottom-anchor: var(--mobile-overlay-shell-anchor-line);
+    --options-offset-below-overlay: 2vh;
+    --mobile-input-shell-breathing-room: 5vh;
+    --mobile-input-shell-top: calc(env(safe-area-inset-top, 0px) + 4vh);
+    --mobile-reader-shell-top: calc(env(safe-area-inset-top, 0px) + 4vh);
+    --mobile-shell-mode-access-font-size: 16px;
+    --input-title-left-offset: 0px;
+    /* Adaptive chrome: shrink on short viewports (~844), keep Max uppers (~932+). */
+    --mobile-bottom-docks-reserve: clamp(112px, calc(100dvh - 716px), 168px);
+    --mobile-loading-overlay-size: min(72vw, 42dvh);
+    --mobile-overlay-action-height: clamp(72px, calc(100dvh - 764px), 96px);
+    --mobile-overlay-action-gap: clamp(10px, calc(100dvh - 834px), 18px);
+    --mobile-overlay-secondary-font-size: 16px;
+    --mobile-overlay-hero-action-height: clamp(128px, calc(100dvh - 700px), 192px);
+    --mobile-reader-swipe-zone-height: clamp(72px, calc(100dvh - 720px), 160px);
+    --overlay-shell-padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    --overlay-shell-height: calc(
+        100dvh -
+        var(--overlay-shell-anchor-top) -
+        var(--options-offset-below-overlay) -
+        var(--mobile-bottom-docks-reserve) -
+        max(env(safe-area-inset-bottom, 0px), 16px)
+    );
+}
+
+html[data-shell-variant*="mobile"] body .shell-mode-access {
+    position: fixed;
+    top: calc(var(--mobile-input-shell-top) + var(--overlay-shell-height-effective, var(--mobile-overlay-shell-anchor-line)) + 3vh);
+    bottom: auto;
+    left: var(--mobile-overlay-inline-gutter);
+    right: auto;
+    z-index: 19;
+    display: none;
+    max-width: calc(100vw - (var(--mobile-overlay-inline-gutter) * 2));
+    font-size: var(--mobile-shell-mode-access-font-size);
+    text-align: left;
+}
+
+html[data-shell-variant*="mobile"] #builtin-overlay[data-active-view="input"] ~ .shell-mode-access {
+    display: inline;
+}
+
+html[data-shell-variant*="mobile"] .input-error {
+    top: calc(var(--mobile-input-shell-top) + var(--overlay-shell-height-effective, var(--mobile-overlay-shell-anchor-line)) + 1.5vh);
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay {
+    left: var(--mobile-overlay-inline-gutter);
+    right: var(--mobile-overlay-inline-gutter);
+    width: auto;
+    height: var(--overlay-shell-height-effective, var(--overlay-shell-height, 50vh));
+    max-height: var(--overlay-shell-height-effective, var(--overlay-shell-height, 50vh));
+    min-height: 0;
+    transform: none;
+    overflow: hidden;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="input"] {
+    position: fixed;
+    top: var(--mobile-input-shell-top);
+    bottom: auto;
+    height: auto;
+    max-height: calc(var(--mobile-overlay-shell-anchor-line) - var(--mobile-input-shell-top));
+    margin: 0;
+    padding-top: calc(12px + var(--mobile-input-shell-breathing-room));
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    grid-template-rows: auto 1fr;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"],
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] {
+    position: fixed;
+    top: var(--mobile-reader-shell-top);
+    bottom: auto;
+    height: min(
+        var(--mobile-reader-overlay-max-height, 80dvh),
+        calc(
+            100dvh -
+            var(--mobile-reader-shell-top) -
+            var(--mobile-reader-swipe-zone-height, 0px) -
+            env(safe-area-inset-bottom, 0px)
+        )
+    );
+    max-height: min(
+        var(--mobile-reader-overlay-max-height, 80dvh),
+        calc(
+            100dvh -
+            var(--mobile-reader-shell-top) -
+            var(--mobile-reader-swipe-zone-height, 0px) -
+            env(safe-area-inset-bottom, 0px)
+        )
+    );
+    grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="loading"] {
+    position: fixed;
+    left: 50%;
+    right: auto;
+    top: var(--mobile-input-shell-top);
+    bottom: auto;
+    width: min(84vw, 420px);
+    height: auto;
+    max-height: calc(var(--mobile-overlay-shell-anchor-line) - var(--mobile-input-shell-top));
+    padding-top: calc(12px + var(--mobile-input-shell-breathing-room));
+    transform: translateX(-50%);
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="loading"] .overlay-header {
+    display: none;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="loading"] .overlay-header.title-committed {
+    display: grid;
+}
+
+html[data-shell-variant*="mobile"] .overlay-content {
+    overflow: hidden;
+}
+
+html[data-shell-variant*="mobile"] .overlay-header {
+    align-items: center;
+}
+
+html[data-shell-variant*="mobile"] .header-left {
+    flex-wrap: nowrap;
+    row-gap: 0;
+    column-gap: 8px;
+}
+
+html[data-shell-variant*="mobile"] .header-center {
+    min-width: 0;
+}
+
+html[data-shell-variant*="mobile"] .header-right {
+    min-width: 0;
+}
+
+html[data-shell-variant*="mobile"] .header-center .overlay-title-field {
+    max-width: 100%;
+}
+
+html[data-shell-variant*="mobile"] .overlay-body {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "main"
+        "actions";
+    grid-template-rows: minmax(0, 1fr) auto;
+    overflow: hidden;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"] .overlay-body,
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] .overlay-body {
+    gap: 18px;
+    padding-bottom: 12px;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"] .overlay-content,
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] .overlay-content {
+    padding-top: 4px;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"] .overlay-progress-row,
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] .overlay-progress-row {
+    padding-block: 6px 10px;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="input"] .overlay-body {
+    grid-template-rows: auto auto;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="loading"] .overlay-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="input"] .view-panel {
+    flex: 0 0 auto;
+    height: auto;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="loading"] .view-panel {
+    flex: 1 1 auto;
+    height: 100%;
+    overflow: hidden;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="loading"] .loading-interface {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 14px;
+    margin: 0;
+    padding-top: 0;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="loading"] .countdown {
+    font-size: clamp(24px, 10vw, 38px);
+    line-height: 1;
+}
+
+html[data-shell-variant*="mobile"] input:not([type="checkbox"]):not([type="radio"]),
+html[data-shell-variant*="mobile"] textarea,
+html[data-shell-variant*="mobile"] select {
+    font-size: 16px;
+}
+
+html[data-shell-variant*="mobile"] #textInput {
+    font-size: max(16px, var(--input-text-font-size, var(--fullchunkdisplay-font-size, 24px)));
+}
+
+html[data-shell-variant*="mobile"] #overlayTitleInput {
+    font-size: max(16px, var(--overlay-title-font-size, 20px));
+}
+
+html[data-shell-variant*="mobile"] .overlay-actions {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    overflow: hidden;
+    padding-bottom: 0;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"] .overlay-actions,
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] .overlay-actions {
+    gap: var(--mobile-overlay-action-gap);
+    padding-bottom: 0;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"] .overlay-actions .overlay-primary-action,
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] .overlay-actions .overlay-primary-action {
+    min-height: var(--mobile-overlay-hero-action-height);
+    padding: 18px 16px;
+    font-size: var(--mobile-overlay-secondary-font-size);
+    border-radius: 14px;
+}
+
+/* Mobile uses swipe + page dots instead of ← →. */
+html[data-shell-variant*="mobile"] #actionGroupNav {
+    display: none !important;
+}
+
+html[data-shell-variant*="mobile"] .page-nav-dots:not([hidden]) {
+    display: flex;
+    flex: 0 0 auto;
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 8px 2px;
+    margin: 0;
+    pointer-events: none;
+}
+
+html[data-shell-variant*="mobile"] .page-nav-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(229, 231, 235, 0.35);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+html[data-shell-variant*="mobile"] .page-nav-dot.is-active {
+    background: rgba(251, 191, 36, 0.95);
+    transform: scale(1.2);
+}
+
+/* Secondary row mirrors desktop primary actions: Save · MP3 in one horizontal strip. */
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"] .overlay-actions #overlayActionsSecondaryRow,
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] .overlay-actions #overlayActionsSecondaryRow {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"] .overlay-actions #overlayActionsSecondaryRow .title-action-btn,
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] .overlay-actions #overlayActionsSecondaryRow .title-action-btn {
+    width: auto;
+    min-height: 44px;
+    padding-block: 5px;
+    padding-inline: 12px;
+    font-size: var(--overlay-secondary-button-font-size, 14px);
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"] .overlay-actions #overlayActionsSecondaryRow .action-group .title-action-btn,
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] .overlay-actions #overlayActionsSecondaryRow .action-group .title-action-btn {
+    flex: 1 1 0;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"] .overlay-actions #overlayActionsSecondaryRow .action-group--nav-pair .title-action-btn,
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] .overlay-actions #overlayActionsSecondaryRow .action-group--nav-pair .title-action-btn {
+    flex: 0 0 auto;
+    min-width: 44px;
+}
+
+/* Pageview play hitbox (mobile) — sits above the hero (order:10 vs hero order:20). */
+html[data-shell-variant*="mobile"] #builtin-overlay[data-active-view="pageview"][data-pageview-playing="true"] #pageviewPlayHitbox {
+    flex: 1 1 auto;
+    min-height: var(--mobile-overlay-action-height);
+    width: 100%;
+}
+
+html[data-shell-variant*="mobile"] #builtin-overlay[data-active-view="pageview"][data-pageview-playing="true"] #generateBtn::before {
+    height: clamp(120px, calc(100dvh - 680px), 200px);
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"] .overlay-primary-action.pause-state,
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] .overlay-primary-action.pause-state {
+    background: rgba(10, 10, 10, 0.82);
+    border-color: #222222;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: color 0.12s ease, opacity 0.12s ease;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="fullchunk"] .overlay-primary-action.pause-state,
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="pageview"] .overlay-primary-action.pause-state {
+    color: #e5e7eb;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="loading"] .overlay-actions {
+    display: none;
+}
+
+/* Full-width only for the hero — secondary controls keep the desktop row layout. */
+html[data-shell-variant*="mobile"] .overlay-actions > .overlay-primary-action {
+    flex: 0 0 auto;
+    width: 100%;
+    margin: 0;
+}
+
+html[data-shell-variant*="mobile"] .overlay-actions #overlayActionsSecondaryRow .title-action-btn {
+    margin: 0;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="input"] .overlay-actions {
+    gap: var(--mobile-overlay-action-gap);
+    padding-bottom: 0;
+}
+
+html[data-shell-variant*="mobile"] .builtin-overlay[data-active-view="input"] #generateBtn {
+    min-height: var(--mobile-overlay-hero-action-height);
+}
+
+html[data-shell-variant*="mobile"] #inputView #textInput {
+    min-height: clamp(96px, 12dvh, 128px);
+    height: clamp(96px, 14dvh, 420px);
+    max-height: none;
+}

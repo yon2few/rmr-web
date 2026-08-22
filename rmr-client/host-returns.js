@@ -66,7 +66,6 @@ function createHostPlayer({ enableMp3Export } = {}) {
     }
 
     const { overlay } = window.ArtReaderReturnsOverlay.mount(overlayHost, {
-        includesTouchGestures: false,
         activeView: 'loading'
     });
 
@@ -164,7 +163,7 @@ function createHostPlayer({ enableMp3Export } = {}) {
         get pages() { return this._pages; },
         set pages(v) { this._pages = Array.isArray(v) ? v : []; },
         activeView: 'input',
-        shellVariant: Object.freeze({ includesTouchGestures: false }),
+        shellVariant: window.ArtReaderShellVariant || Object.freeze({ includesTouchGestures: false }),
         audioDecodeRetriedChunks: new Set(),
         setActiveView(name) {
             if (name === 'input') {
@@ -189,7 +188,9 @@ function createHostPlayer({ enableMp3Export } = {}) {
             saveBtn,
             exportBtn,
             resetBtn,
-            builtinOverlay: overlay
+            builtinOverlay: overlay,
+            pageViewGestureLayer: document.getElementById('pageViewGestureLayer'),
+            pageNavDots: document.getElementById('pageNavDots')
         },
         get currentAudioElement() { return currentAudioElement; },
         set currentAudioElement(v) { currentAudioElement = v; },
@@ -449,11 +450,67 @@ function createHostPlayer({ enableMp3Export } = {}) {
         }
         if (state.mode) showHostScreen(state.mode);
         shellRuntime.setOverlayActionState(state);
+        syncPageNavDots();
     };
     player.syncOverlayActionState = (overrides = {}) => {
         if (player.activeView === 'input') return;
         shellRuntime.syncOverlayActionState(overrides);
+        syncPageNavDots();
     };
+
+    function syncPageNavDots() {
+        if (player.shellVariant?.includesTouchGestures !== true) {
+            return;
+        }
+        const strip = player.elements.pageNavDots;
+        if (!strip) {
+            throw new Error('[HostReturns] Missing #pageNavDots for touch shell.');
+        }
+
+        const mode = player.activeView;
+        let count = 0;
+        let activeIndex = null;
+
+        if (mode === 'pageview') {
+            count = Array.isArray(player.pages) ? player.pages.length : 0;
+            activeIndex = player.resolveCurrentPageNavIndex();
+        } else if (mode === 'fullchunk') {
+            count = Number.isInteger(player.totalChunks) ? player.totalChunks : 0;
+            activeIndex = player.currentChunkIndex;
+        } else {
+            strip.replaceChildren();
+            strip.hidden = true;
+            return;
+        }
+
+        if (
+            !Number.isInteger(count) ||
+            count <= 1 ||
+            !Number.isInteger(activeIndex) ||
+            activeIndex < 0 ||
+            activeIndex >= count
+        ) {
+            strip.replaceChildren();
+            strip.hidden = true;
+            return;
+        }
+
+        const existing = strip.querySelectorAll('.page-nav-dot');
+        if (existing.length !== count) {
+            const fragment = document.createDocumentFragment();
+            for (let i = 0; i < count; i += 1) {
+                const dot = document.createElement('span');
+                dot.className = 'page-nav-dot';
+                fragment.appendChild(dot);
+            }
+            strip.replaceChildren(fragment);
+        }
+
+        strip.querySelectorAll('.page-nav-dot').forEach((dot, index) => {
+            dot.classList.toggle('is-active', index === activeIndex);
+        });
+        strip.hidden = false;
+    }
 
     const playbackAdapter = window.ArtReaderReaderPlaybackAdapter.createReaderPlaybackAdapter(player);
     player.playbackAdapter = playbackAdapter;

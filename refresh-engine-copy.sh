@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
-# Copy the portable engine extract into this web app. Does not touch host files.
+# Copy the portable engine extract and the host-shell allowlist into this web app.
+# Host allowlist: shell-access.js, shell-router.js, shell-variant.js, styles-mobile.css.
+# Do not copy shell-controller, reader-shell-markup, or engine/index.js.
 # Source folder name is local only. GitHub stays yon2few/art-reader-engine-frontend-shared.
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly ENGINE_DIR="${SCRIPT_DIR}/../ArT Reader - Engine (shared)"
 readonly ENGINE_SRC="${ENGINE_DIR}/engine"
+readonly HOST_SRC="${ENGINE_DIR}/host"
 readonly DEST="${SCRIPT_DIR}/engine"
+readonly HOST_DEST="${SCRIPT_DIR}/host"
+readonly HOST_SHELL_FILES=(
+  shell-access.js
+  shell-router.js
+  shell-variant.js
+  styles-mobile.css
+)
 
 mode="refresh"
 while [[ $# -gt 0 ]]; do
@@ -26,6 +36,16 @@ if [[ ! -d "${ENGINE_SRC}" ]]; then
   echo "Error: Engine extract is missing: ${ENGINE_SRC}" >&2
   exit 1
 fi
+if [[ ! -d "${HOST_SRC}" ]]; then
+  echo "Error: Engine host folder is missing: ${HOST_SRC}" >&2
+  exit 1
+fi
+for host_file in "${HOST_SHELL_FILES[@]}"; do
+  if [[ ! -f "${HOST_SRC}/${host_file}" ]]; then
+    echo "Error: Engine host-shell file is missing: ${HOST_SRC}/${host_file}" >&2
+    exit 1
+  fi
+done
 if [[ ! -d "${ENGINE_DIR}/.git" ]]; then
   echo "Error: Engine folder is not a git repo: ${ENGINE_DIR}" >&2
   exit 1
@@ -73,6 +93,18 @@ Do not edit these files in place. Refresh is a copy-only commit.
 Do not load engine/index.js.
 EOF
 
+mkdir -p "${staging_dir}/host"
+for host_file in "${HOST_SHELL_FILES[@]}"; do
+  cp "${HOST_SRC}/${host_file}" "${staging_dir}/host/${host_file}"
+done
+cat > "${staging_dir}/host/SYNC.md" <<EOF
+Source: ArT Reader - Engine (shared)/host/
+Commit: ${HASH}
+Copied: shell-access.js, shell-router.js, shell-variant.js, styles-mobile.css
+Do not edit these files in place. Refresh is a copy-only commit.
+Do not copy shell-controller, reader-shell-markup, or other Engine host files.
+EOF
+
 check_dir() {
   local expected="$1"
   local actual="$2"
@@ -102,11 +134,15 @@ if [[ "${mode}" == "check" ]]; then
   check_file "${staging_dir}/README.md" "${DEST}/README.md"
   check_file "${staging_dir}/test-page-turn-timing.mjs" "${DEST}/test-page-turn-timing.mjs"
   check_file "${staging_dir}/SYNC.md" "${DEST}/SYNC.md"
+  check_file "${staging_dir}/host/SYNC.md" "${HOST_DEST}/SYNC.md"
+  for host_file in "${HOST_SHELL_FILES[@]}"; do
+    check_file "${staging_dir}/host/${host_file}" "${HOST_DEST}/${host_file}"
+  done
   if [[ -e "${DEST}/index.js" ]]; then
     echo "Error: engine/index.js must not be present in the web app." >&2
     exit 1
   fi
-  echo "RMR web engine copy is synchronized at ${HASH}."
+  echo "RMR web engine and host-shell copy is synchronized at ${HASH}."
   exit 0
 fi
 
@@ -121,11 +157,16 @@ cp "${staging_dir}/AGENTS.md" "${DEST}/AGENTS.md"
 cp "${staging_dir}/README.md" "${DEST}/README.md"
 cp "${staging_dir}/test-page-turn-timing.mjs" "${DEST}/test-page-turn-timing.mjs"
 cp "${staging_dir}/SYNC.md" "${DEST}/SYNC.md"
+mkdir -p "${HOST_DEST}"
+cp "${staging_dir}/host/SYNC.md" "${HOST_DEST}/SYNC.md"
+for host_file in "${HOST_SHELL_FILES[@]}"; do
+  cp "${staging_dir}/host/${host_file}" "${HOST_DEST}/${host_file}"
+done
 
 if [[ -e "${DEST}/index.js" ]]; then
   echo "Error: refresh copied engine/index.js — that file must not land in the web app." >&2
   exit 1
 fi
 
-echo "Refreshed engine copy from ${HASH}"
-git -C "${SCRIPT_DIR}" status -- "${DEST}"
+echo "Refreshed engine and host-shell copy from ${HASH}"
+git -C "${SCRIPT_DIR}" status -- "${DEST}" "${HOST_DEST}"
