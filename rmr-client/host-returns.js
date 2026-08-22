@@ -178,17 +178,6 @@ function createHostPlayer({ enableMp3Export } = {}) {
             } else {
                 this.activeView = name;
             }
-            if (name === 'pageview' && this.input?.dataDisplay) {
-                const pageIndex = Number.isInteger(this.currentPageIndex) ? this.currentPageIndex : 0;
-                requestAnimationFrame(() => {
-                    try {
-                        const upper = this.readRootPixelVariable('--pageviewmode-font-size-max');
-                        this.input.dataDisplay.snapCurrentPageViewFontSizeToFit(pageIndex, upper);
-                    } catch (error) {
-                        console.warn('[HostReturns] PageView font-fit skipped:', error);
-                    }
-                });
-            }
         },
         elements: {
             fullChunkDisplay,

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly DEFAULT_SOURCE="/Users/yonyonson/Developer/ArT Reader/RMR Extension Engine (shared)"
+readonly DEFAULT_SOURCE="/Users/yonyonson/Developer/ArT Reader/RMR - Chrome Extension"
 readonly SOURCE_BUNDLE_REL="extension_art-reddit-json"
 
 mode="refresh"
@@ -55,18 +55,8 @@ if [[ "${shared_commit}" != "${shared_upstream_commit}" ]]; then
 fi
 
 readonly source_bundle="${source_repo}/${SOURCE_BUNDLE_REL}"
-readonly engine_sync="${source_bundle}/engine/SYNC.md"
-if [[ ! -f "${engine_sync}" ]]; then
-  echo "Error: shared source is missing engine/SYNC.md." >&2
-  exit 1
-fi
-readonly engine_commit="$(sed -n 's/^Commit: \([0-9a-f][0-9a-f]*\)$/\1/p' "${engine_sync}")"
-if [[ ! "${engine_commit}" =~ ^[0-9a-f]{40}$ ]]; then
-  echo "Error: engine/SYNC.md does not contain a valid 40-character upstream commit." >&2
-  exit 1
-fi
 
-for required_path in sidepanel.html rmr-client engine icons test-fixtures; do
+for required_path in rmr-client/markup.js rmr-client/styles.css rmr-client/client.js icons test-fixtures; do
   if [[ ! -e "${source_bundle}/${required_path}" ]]; then
     echo "Error: shared allowlist source is missing: ${required_path}" >&2
     exit 1
@@ -79,34 +69,31 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "${staging_dir}/rmr-client" "${staging_dir}/engine" "${staging_dir}/icons" "${staging_dir}/test-fixtures"
-cp "${source_bundle}/sidepanel.html" "${staging_dir}/index.html"
+mkdir -p "${staging_dir}/rmr-client" "${staging_dir}/icons" "${staging_dir}/test-fixtures"
 rsync -a --delete "${source_bundle}/rmr-client/" "${staging_dir}/rmr-client/"
-rsync -a --delete "${source_bundle}/engine/" "${staging_dir}/engine/"
 rsync -a --delete "${source_bundle}/icons/" "${staging_dir}/icons/"
 rsync -a --delete "${source_bundle}/test-fixtures/" "${staging_dir}/test-fixtures/"
 
 cat > "${staging_dir}/RMR_SYNC.md" <<EOF
 # RMR Shared Client Sync
 
-This web consumer mirrors a committed allowlist from
+This web consumer mirrors RMR input files from
 \`yon2few/rmr-extension-engine-shared\`. Do not edit mirrored files here.
+Engine playback is refreshed separately from ArT Reader Engine via
+\`./refresh-engine-copy.sh\`.
 
 - Shared RMR commit: \`${shared_commit}\`
-- Upstream engine commit: \`${engine_commit}\`
 - Source bundle: \`extension_art-reddit-json/\`
 
 ## Copied inventory
 
-- \`sidepanel.html\` → \`index.html\`
 - \`rmr-client/**\` → \`rmr-client/**\`
-- \`engine/**\` → \`engine/**\`
 - \`icons/**\` → \`icons/**\`
 - \`test-fixtures/**\` → \`test-fixtures/**\`
 
-Consumer-owned files such as \`platform-adapter.js\`, Netlify functions,
-the OAuth/share expansion service, local proxy, and deploy scripts are never
-copied from the shared repository.
+Consumer-owned files such as \`index.html\`, \`web-host.css\`,
+\`platform-adapter.js\`, Netlify functions, the OAuth/share expansion service,
+local proxy, and deploy scripts are never copied from the Chrome repository.
 
 Refresh only from a clean, pushed producer commit:
 
@@ -140,21 +127,17 @@ check_dir() {
 }
 
 if [[ "${mode}" == "check" ]]; then
-  check_file "${staging_dir}/index.html" "${SCRIPT_DIR}/index.html"
   check_file "${staging_dir}/RMR_SYNC.md" "${SCRIPT_DIR}/RMR_SYNC.md"
   check_dir "${staging_dir}/rmr-client" "${SCRIPT_DIR}/rmr-client"
-  check_dir "${staging_dir}/engine" "${SCRIPT_DIR}/engine"
   check_dir "${staging_dir}/icons" "${SCRIPT_DIR}/icons"
   check_dir "${staging_dir}/test-fixtures" "${SCRIPT_DIR}/test-fixtures"
   echo "RMR shared-client copy is synchronized at ${shared_commit}."
   exit 0
 fi
 
-cp "${staging_dir}/index.html" "${SCRIPT_DIR}/index.html"
 cp "${staging_dir}/RMR_SYNC.md" "${SCRIPT_DIR}/RMR_SYNC.md"
-mkdir -p "${SCRIPT_DIR}/rmr-client" "${SCRIPT_DIR}/engine" "${SCRIPT_DIR}/icons" "${SCRIPT_DIR}/test-fixtures"
+mkdir -p "${SCRIPT_DIR}/rmr-client" "${SCRIPT_DIR}/icons" "${SCRIPT_DIR}/test-fixtures"
 rsync -a --delete "${staging_dir}/rmr-client/" "${SCRIPT_DIR}/rmr-client/"
-rsync -a --delete "${staging_dir}/engine/" "${SCRIPT_DIR}/engine/"
 rsync -a --delete "${staging_dir}/icons/" "${SCRIPT_DIR}/icons/"
 rsync -a --delete "${staging_dir}/test-fixtures/" "${SCRIPT_DIR}/test-fixtures/"
 

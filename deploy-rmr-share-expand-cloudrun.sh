@@ -12,7 +12,7 @@ readonly IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 readonly SOURCE_DIR="${SCRIPT_DIR}/expand-service"
 readonly REDDIT_ID_SECRET="reddit-client-id"
 readonly REDDIT_SECRET_SECRET="reddit-client-secret"
-readonly LOCAL_ENV="/Users/yonyonson/Developer/ArT Reader/ArT Reader - Backend (cloudrun)/.env"
+readonly LOCAL_ENV="/Users/yonyonson/Developer/ArT Reader/Cloud Run - ArT Reader Backend/.env"
 
 project_number="$(gcloud projects describe "${PROJECT_ID}" --format='value(projectNumber)')"
 if [[ -z "${project_number}" ]]; then

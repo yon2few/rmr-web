@@ -9,31 +9,54 @@ window.RmrClient = Object.freeze({
   if (!domain || typeof domain.processListing !== 'function') {
     throw new Error('[RmrClient] rmr-client/domain.js did not load.');
   }
+  if (!window.RmrClientMarkup || typeof window.RmrClientMarkup.mount !== 'function') {
+    throw new Error('[RmrClient] rmr-client/markup.js did not load.');
+  }
+  const root = document.getElementById('rmr-root');
+  if (!root) {
+    throw new Error('[RmrClient] Missing #rmr-root.');
+  }
   document.documentElement.dataset.rmrPlatform = adapter.id;
+  window.RmrClientMarkup.mount(root);
+
+  function requireElement(id) {
+    const element = document.getElementById(id);
+    if (!element) throw new Error(`[RmrClient] Missing #${id}.`);
+    return element;
+  }
+
+  const sortRadios = document.querySelectorAll('input[name="sort"]');
+  if (!sortRadios.length) {
+    throw new Error('[RmrClient] Missing sort controls.');
+  }
+  const gatedCards = document.querySelectorAll('.gated-by-post-only');
+  if (!gatedCards.length) {
+    throw new Error('[RmrClient] Missing .gated-by-post-only.');
+  }
 
   const ui = {
-    panel: document.getElementById('panel'),
-    subreddit: document.getElementById('subredditLabel'),
-    title: document.getElementById('postTitle'),
-    time: document.getElementById('estTime'),
-    sortRadios: document.querySelectorAll('input[name="sort"]'),
-    postOnlyToggle: document.getElementById('postOnlyToggle'),
-    generateAudioBtn: document.getElementById('generateAudioBtn'),
-    generationError: document.getElementById('generationError'),
-    resetBtn: document.getElementById('rmrInputResetBtn'),
-    screenInput: document.getElementById('screen-input'),
-    commentLimit: document.getElementById('commentLimit'),
-    commentLimitLabel: document.getElementById('commentLimitLabel'),
-    maxReplies: document.getElementById('maxReplies'),
-    maxRepliesLabel: document.getElementById('maxRepliesLabel'),
-    maxReplyChildren: document.getElementById('maxReplyChildren'),
-    maxReplyChildrenLabel: document.getElementById('maxReplyChildrenLabel'),
-    barPost: document.getElementById('bar-post'),
-    barComments: document.getElementById('bar-comments'),
-    barReplies: document.getElementById('bar-replies'),
-    barReplyChildren: document.getElementById('bar-reply-children'),
-    gatedCards: document.querySelectorAll('.gated-by-post-only'),
-    replyTreeSvg: document.getElementById('replyTreeSvg')
+    panel: requireElement('panel'),
+    subreddit: requireElement('subredditLabel'),
+    title: requireElement('postTitle'),
+    time: requireElement('estTime'),
+    sortRadios,
+    postOnlyToggle: requireElement('postOnlyToggle'),
+    generateAudioBtn: requireElement('generateAudioBtn'),
+    generationError: requireElement('generationError'),
+    resetBtn: requireElement('rmrInputResetBtn'),
+    screenInput: requireElement('screen-input'),
+    commentLimit: requireElement('commentLimit'),
+    commentLimitLabel: requireElement('commentLimitLabel'),
+    maxReplies: requireElement('maxReplies'),
+    maxRepliesLabel: requireElement('maxRepliesLabel'),
+    maxReplyChildren: requireElement('maxReplyChildren'),
+    maxReplyChildrenLabel: requireElement('maxReplyChildrenLabel'),
+    barPost: requireElement('bar-post'),
+    barComments: requireElement('bar-comments'),
+    barReplies: requireElement('bar-replies'),
+    barReplyChildren: requireElement('bar-reply-children'),
+    gatedCards,
+    replyTreeSvg: requireElement('replyTreeSvg')
   };
 
   let currentTabUrl = null;

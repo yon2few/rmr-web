@@ -1,23 +1,22 @@
 # RMR Shared Client Sync
 
-This web consumer mirrors a committed allowlist from
+This web consumer mirrors RMR input files from
 `yon2few/rmr-extension-engine-shared`. Do not edit mirrored files here.
+Engine playback is refreshed separately from ArT Reader Engine via
+`./refresh-engine-copy.sh`.
 
-- Shared RMR commit: `12484264b4875c3ffe0e87f98e9b40a9bac39c0e`
-- Upstream engine commit: `01e82597cdfdfa9a2177d1be8190fd1a31a6d76e`
+- Shared RMR commit: `d257142174a7a0e575fbf2c19554770eac64ea81`
 - Source bundle: `extension_art-reddit-json/`
 
 ## Copied inventory
 
-- `sidepanel.html` → `index.html`
 - `rmr-client/**` → `rmr-client/**`
-- `engine/**` → `engine/**`
 - `icons/**` → `icons/**`
 - `test-fixtures/**` → `test-fixtures/**`
 
-Consumer-owned files such as `platform-adapter.js`, Netlify functions,
-the OAuth/share expansion service, local proxy, and deploy scripts are never
-copied from the shared repository.
+Consumer-owned files such as `index.html`, `web-host.css`,
+`platform-adapter.js`, Netlify functions, the OAuth/share expansion service,
+local proxy, and deploy scripts are never copied from the Chrome repository.
 
 Refresh only from a clean, pushed producer commit:
 

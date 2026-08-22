@@ -1,11 +1,18 @@
-# rmr web — Agent Refresher
+# RMR - Web App — Agent Refresher
 
-Local folder: `rmr web`. Created 2026-08-18 as the public web port of
-the RMR extension. Folder name is local only.
+Local folder: `RMR - Web App` (renamed from `rmr web`). Created 2026-08-18 as
+the public web port of the RMR extension. Folder name is local only. GitHub
+stays `yon2few/rmr-web`.
 
-**Input is ours.** Paste a Reddit thread URL, filter, estimate, Generate POST.
-**Returns are the shared engine** (`ArT Reader - Engine (shared)/engine/`).
-Do not load `engine/index.js`. Brand is the slideshow photograph.
+**Runtime pipeline, in order:**
+
+1. **Web-only:** paste a Reddit URL; Cloud Run / Netlify `api/thread` (+ share
+   expand) returns listing JSON. The Chrome extension does not use this path.
+2. **RMR Extension input:** once JSON is in hand, mirrored `rmr-client/` owns
+   filters, tree, estimate, and the Generate payload.
+3. **POST `/run`** to `rmr-backend-cloudrun`.
+4. **ArT Reader Engine:** mirrored `engine/` owns loading, Full Chunk, and Page
+   View. Do not load `engine/index.js`. Brand is the slideshow photograph.
 
 ## Deploy identity (folder name is local only)
 
@@ -14,7 +21,7 @@ Do not load `engine/index.js`. Brand is the slideshow photograph.
 | Public path | `https://artreader.art/rmr` |
 | Netlify site | `artreader.art` (ID `c7def6d9-065e-4b3d-a658-773c7ac82299`) |
 | Transform service | `rmr-backend-cloudrun` |
-| Transform source | `../rmr-backend-cloudrun` / `yon2few/rmr-backend-cloudrun` |
+| Transform source | `../Cloud Run - RMR backend` / `yon2few/rmr-backend-cloudrun` |
 | Transform URL | `https://rmr-backend-cloudrun-375541022505.us-central1.run.app` |
 | GitHub | `yon2few/rmr-web` |
 | Script | `deploy-rmr-web.sh` |
@@ -31,27 +38,25 @@ GCP project: **`artreader`**.
 requires homepage + `/reader` already present so a publish does not
 drop sibling routes.
 
-## Shared client copy
+## Dual refresh
 
-`index.html`, `rmr-client/`, `engine/`, and `icons/` are verbatim mirrors from
-`RMR Extension Engine (shared)`. Refresh all of them together with
-`./refresh-rmr-client-copy.sh`; validate drift with
-`./refresh-rmr-client-copy.sh --check`. See `RMR_SYNC.md` for the producer and
-upstream engine commits. Never edit mirrored files in this consumer.
+`rmr-client/`, `icons/`, and `test-fixtures/` are verbatim mirrors from
+`RMR - Chrome Extension`. Refresh with `./refresh-rmr-client-copy.sh`.
+`engine/` is a verbatim mirror from `ArT Reader - Engine (shared)`. Refresh
+with `./refresh-engine-copy.sh`. Never edit mirrored files here. See
+`RMR_SYNC.md` and `engine/SYNC.md`.
 
 `platform-adapter.js` is the web-only composition root. It owns paste,
 clipboard, URL history, `/api/thread`, proxy errors, and the web transform
-configuration. Production generation streams directly from
-`rmr-backend-cloudrun`; that service explicitly grants the two
-production web origins and strict Chrome-extension origins. MP3 export is
-disabled by contract. The Netlify functions,
-OAuth/share expansion service, local proxy, and deploy scripts remain
-consumer-owned.
+configuration. After listing JSON returns, shared `rmr-client` takes over.
+Production generation streams directly from `rmr-backend-cloudrun`. MP3 export
+is disabled by contract. The Netlify functions, OAuth/share expansion service,
+local proxy, and deploy scripts remain consumer-owned.
 
 The `/run` trace is: `rmr-client/domain.js` builds `{ title, subreddit,
 flatData }`; `rmr-client/client.js` appends `/run` to the URL returned by
 `platform-adapter.js`; `rmr-client/host-returns.js` performs and consumes the
-streaming POST. The canonical backend `../rmr-backend-cloudrun`
+streaming POST. The canonical backend `../Cloud Run - RMR backend`
 receives it in `main.py`, delegates transformation and orchestration to
 `transform.py`, then streams `artreader-v35/generate-v35-reddit` events back to
 this client. The backend README records the exact deployed commit, build,

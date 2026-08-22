@@ -44,6 +44,7 @@ rsync -a \
   --exclude '.git' \
   --exclude 'deploy-rmr-web.sh' \
   --exclude 'refresh-rmr-client-copy.sh' \
+  --exclude 'refresh-engine-copy.sh' \
   --exclude 'RMR_SYNC.md' \
   --exclude 'test-fixtures' \
   --exclude 'dev-server.py' \
@@ -61,8 +62,10 @@ cp "${SCRIPT_DIR}/netlify/edge-functions/rmr-expand.js" \
   "${PROD_ROOT}/netlify/edge-functions/rmr-expand.js"
 
 require_file "${RMR_BUILD_DIR}/index.html"
+require_file "${RMR_BUILD_DIR}/web-host.css"
 require_file "${RMR_BUILD_DIR}/platform-adapter.js"
 require_file "${RMR_BUILD_DIR}/rmr-client/client.js"
+require_file "${RMR_BUILD_DIR}/rmr-client/markup.js"
 require_file "${RMR_BUILD_DIR}/rmr-client/host-returns.js"
 require_file "${RMR_BUILD_DIR}/engine/overlay/markup.js"
 require_file "${BUILD_DIR}/netlify/functions/rmr-thread-json.js"
@@ -79,5 +82,5 @@ CI=1 netlify deploy \
   --site "${ARTREADER_SITE_ID}" \
   --message "Publish Read Me Reddit web app at /rmr"
 
-echo "Completed rmr web production deploy"
+echo "Completed RMR - Web App production deploy"
 echo "Public URL: ${ARTREADER_SITE_URL}/rmr"
