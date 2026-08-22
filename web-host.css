@@ -1,1 +1,95 @@
-html[data-rmr-platform="web"] body { width: min(420px, 100%); }
+/* /rmr host overlay contract — copied from ArT Reader Engine
+   host/styles-core.css and engine/overlay/styles-overlay.css.
+   Shared rmr-client/styles.css stays the Chrome side-panel (360px / 100% fill).
+   Do not edit those mirrored files here. */
+
+html[data-rmr-platform="web"] {
+  --overlay-width: 80%;
+  --overlay-max-width: 1800px;
+  --overlay-top-offset: 5vh;
+  --overlay-shell-anchor-top: var(--overlay-top-offset, 5vh);
+  --overlay-shell-height: 72vh;
+  --reader-input-link-reserve: 0px;
+  --reader-input-expanded-overlay-height: calc(
+    100dvh -
+    var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)) -
+    var(--reader-input-link-reserve) -
+    env(safe-area-inset-bottom, 0px)
+  );
+}
+
+html[data-rmr-platform="web"],
+html[data-rmr-platform="web"] body {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 100dvh;
+}
+
+html[data-rmr-platform="web"] body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+html[data-rmr-platform="web"] #rmr-root {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  flex: 1;
+  min-height: 100dvh;
+}
+
+html[data-rmr-platform="web"] .panel {
+  width: var(--overlay-width);
+  max-width: var(--overlay-max-width);
+  margin: var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)) auto 0;
+  height: var(--reader-input-expanded-overlay-height);
+  max-height: var(--reader-input-expanded-overlay-height);
+}
+
+html[data-rmr-platform="web"] .panel.is-returns-open {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  height: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+html[data-rmr-platform="web"] #returns-overlay-host.is-open {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+}
+
+/* Undo the side-panel 100% fill so Engine overlay geometry applies. */
+html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay,
+html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="loading"],
+html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="fullchunk"],
+html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="pageview"] {
+  top: var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh));
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--overlay-width);
+  max-width: var(--overlay-max-width);
+  height: var(--overlay-shell-height-effective, var(--overlay-shell-height, 72vh));
+  min-height: 0;
+  max-height: none;
+}
+
+html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="loading"] {
+  height: max(
+    var(--input-overlay-height, 0px),
+    var(--overlay-shell-height-effective, var(--overlay-shell-height, 72vh))
+  );
+  max-height: calc(100vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)) - 24px);
+}
+
+html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="fullchunk"],
+html[data-rmr-platform="web"] #returns-overlay-host .builtin-overlay[data-active-view="pageview"] {
+  height: calc(98vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)));
+  min-height: calc(98vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)));
+  max-height: calc(98vh - var(--overlay-shell-anchor-top, var(--overlay-top-offset, 5vh)));
+}
